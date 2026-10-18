@@ -107,6 +107,10 @@
   }
 
   const data = await loadData();
+  if (window.__PAGE__) {
+    document.documentElement.style.setProperty('--page-w', window.__PAGE__.w + 'px');
+    document.documentElement.style.setProperty('--page-h', window.__PAGE__.h + 'px');
+  }
   const opts = data.options || {};
 
   // header
