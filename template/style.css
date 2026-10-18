@@ -59,10 +59,10 @@ body { display: flex; justify-content: center; }
   text-align: center;
   font-family: "UnifrakturCook", "Old English Text MT", serif;
   font-weight: 700;
-  font-size: 84px;
+  font-size: 50px;
   line-height: 1;
   letter-spacing: 0.5px;
-  padding: 6px 0 10px;
+  padding: 2px 0 6px;
 }
 .dateline {
   display: flex;
@@ -78,12 +78,12 @@ body { display: flex; justify-content: center; }
 }
 
 /* ---------- headline block ---------- */
-.headline-block { padding: 22px 0 12px; text-align: center; }
+.headline-block { padding: 14px 0 6px; text-align: center; }
 .headline {
   font-family: "Playfair Display", "Old Standard TT", serif;
   font-weight: 900;
-  font-size: 86px;
-  line-height: 1.0;
+  font-size: 50px;
+  line-height: 1.05;
   letter-spacing: -0.5px;
   word-spacing: 0.1em;
   margin: 0;
@@ -91,21 +91,18 @@ body { display: flex; justify-content: center; }
 .subhead {
   font-family: "Old Standard TT", serif;
   font-style: italic;
-  font-size: 21px;
-  line-height: 1.28;
-  margin: 12px auto 0;
+  font-size: 19px;
+  line-height: 1.25;
+  margin: 6px auto 0;
   max-width: 86%;
 }
 .byline {
   margin-top: 14px;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-  padding: 5px 0;
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-weight: 700;
-  text-align: center;
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 400;
+  text-align: left;
+  padding-left: 4px;
 }
 
 /* ---------- body: three columns + anchored photo ---------- */
@@ -113,7 +110,7 @@ body { display: flex; justify-content: center; }
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  margin-top: 16px;
+  margin-top: 10px;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   column-gap: var(--gap);
@@ -131,19 +128,10 @@ body { display: flex; justify-content: center; }
 }
 .col + .col { border-left: 1px solid var(--rule); padding-left: calc(var(--gap) / 2); margin-left: calc(var(--gap) / -2); }
 
-.col p { margin: 0; text-indent: 1.4em; }
-.col p.first, .col p.cont { text-indent: 0; }
-.col p + p { margin-top: 0.1em; }
+.col p { margin: 0; text-indent: 0; }
+.col p + p { margin-top: 0.75em; }
+.col p.cont { margin-top: 0; }
 
-/* drop cap on the first paragraph */
-.col p.first::first-letter {
-  font-family: "Playfair Display", serif;
-  font-weight: 900;
-  float: left;
-  font-size: 3.5em;
-  line-height: 0.82;
-  padding: 0.06em 0.08em 0 0;
-}
 
 /* spacers hold open the space under the anchored photo */
 .spacer { pointer-events: none; }
