@@ -1,0 +1,27 @@
+{
+  "nameplate": "The Family Gazette",
+  "vol": "Vol. I · No. 1",
+  "tagline": "A Life Remembered",
+  "date": "Sunday, December 25",
+  "headline": "A Life Well Built",
+  "subhead": "Elias Haddad, 1904–1981: carpenter, father of six, and the steady heart of Maple Street",
+  "byline": "By Maria Haddad, granddaughter",
+  "photo": { "src": "assets/placeholder-portrait.jpg", "focus": [0.5, 0.4] },
+  "extraPhotos": [
+    { "src": "assets/placeholder-portrait.jpg", "caption": "Elias at his workbench, around 1950.", "afterParagraph": 4, "focus": [0.5, 0.35] }
+  ],
+  "body": [
+    "He arrived with a set of tools wrapped in a wool blanket and a promise to his mother that he would write every Sunday. He kept that promise for forty years.",
+    "By 1935 Elias had built half the porches on Maple Street, and repaired the other half for free. Neighbors remember the smell of cedar in his workshop and the radio that played there every afternoon.",
+    "He married Rose in 1931. Together they raised six children in a house he framed himself, and every one of them learned to hold a hammer before they could ride a bicycle.",
+    "Rose kept the books and the peace. On Saturdays the kitchen filled with cousins and the workshop filled with whoever needed something fixed, and nobody was ever sent home without a plate.",
+    "He never owned a car. He walked to every job with a canvas bag over his shoulder, and children on the street learned to tell the hour by the sound of his boots. If a gate was loose or a step was rotten, he fixed it on the way past and never mentioned it again.",
+    "In the hard winter of 1947 he built a table long enough for the whole street and set it in the yard. The family still talks about the soup, and about how Elias insisted on sitting at the far end where the draft was worst.",
+    "Those who knew him say he measured twice and listened three times. He taught his sons to sharpen a chisel before they were allowed to use it, and his daughters to read a blueprint before they were allowed to ignore one.",
+    "When the shop finally closed in 1974, the radio stayed on the shelf, still tuned to the same station. He sat beside it most afternoons, sanding small things for the grandchildren: a spinning top, a toy boat, a box with a lid that fit so well it sighed when it closed.",
+    "Whatever he built, he built to last, and so did the family he left behind. He is remembered by eleven grandchildren, a street full of sturdy porches, and a workshop radio that still works."
+  ],
+  "closing": "— 30 —",
+  "footer": "An example portrait. The person and story shown are illustrative.",
+  "options": { "halftone": true, "bodyMinPt": 8.5, "bodyMaxPt": 13.5 }
+}

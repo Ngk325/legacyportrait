@@ -1,0 +1,192 @@
+/* Legacy Portrait: newspaper template, "Clean" finish.
+   Page is laid out in CSS px at 96 px/in. 11x14 in = 1056 x 1344 px.
+   Print at 300 DPI = device scale factor 3.125. All sizes come from CSS variables
+   so the same template can serve 8x10 and 16x20 (4:5 family) by changing --page-w/--page-h
+   and scaling via the --u unit. */
+
+@font-face { font-family: "Old Standard TT"; font-weight: 400; font-style: normal; src: url("fonts/old-standard-tt-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Old Standard TT"; font-weight: 400; font-style: italic; src: url("fonts/old-standard-tt-latin-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "Old Standard TT"; font-weight: 700; font-style: normal; src: url("fonts/old-standard-tt-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Playfair Display"; font-weight: 700; font-style: normal; src: url("fonts/playfair-display-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Playfair Display"; font-weight: 900; font-style: normal; src: url("fonts/playfair-display-latin-900-normal.woff2") format("woff2"); }
+@font-face { font-family: "Playfair Display"; font-weight: 400; font-style: italic; src: url("fonts/playfair-display-latin-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "UnifrakturCook"; font-weight: 700; font-style: normal; src: url("fonts/unifrakturcook-latin-700-normal.woff2") format("woff2"); }
+
+:root {
+  --page-w: 1056px;
+  --page-h: 1344px;
+  --margin: 52px;
+  --gap: 22px;
+  --ink: #141414;
+  --paper: #ffffff;
+  --rule: #141414;
+}
+
+@page { size: 11in 14in; margin: 0; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #d9d9d9; }
+body { display: flex; justify-content: center; }
+
+@media print {
+  html, body { background: var(--paper); }
+}
+
+.page {
+  position: relative;
+  width: var(--page-w);
+  height: var(--page-h);
+  padding: var(--margin);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Old Standard TT", "Bitstream Charter", Georgia, serif;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* thin keyline around the page */
+.page::before {
+  content: "";
+  position: absolute;
+  inset: 26px;
+  border: 1.5px solid var(--rule);
+  pointer-events: none;
+}
+
+/* ---------- masthead ---------- */
+.nameplate {
+  text-align: center;
+  font-family: "UnifrakturCook", "Old English Text MT", serif;
+  font-weight: 700;
+  font-size: 84px;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  padding: 6px 0 10px;
+}
+.dateline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 3px double var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 2px 5px;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* ---------- headline block ---------- */
+.headline-block { padding: 22px 0 12px; text-align: center; }
+.headline {
+  font-family: "Playfair Display", "Old Standard TT", serif;
+  font-weight: 900;
+  font-size: 86px;
+  line-height: 1.0;
+  letter-spacing: -0.5px;
+  word-spacing: 0.1em;
+  margin: 0;
+}
+.subhead {
+  font-family: "Old Standard TT", serif;
+  font-style: italic;
+  font-size: 21px;
+  line-height: 1.28;
+  margin: 12px auto 0;
+  max-width: 86%;
+}
+.byline {
+  margin-top: 14px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 5px 0;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ---------- body: three columns + anchored photo ---------- */
+.body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  column-gap: var(--gap);
+}
+
+.col {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  font-size: var(--body-size, 14px);
+  line-height: 1.34;
+  text-align: justify;
+  hyphens: manual;               /* soft hyphens are inserted by vendor/hyphen.js */
+  -webkit-hyphens: manual;
+}
+.col + .col { border-left: 1px solid var(--rule); padding-left: calc(var(--gap) / 2); margin-left: calc(var(--gap) / -2); }
+
+.col p { margin: 0; text-indent: 1.4em; }
+.col p.first, .col p.cont { text-indent: 0; }
+.col p + p { margin-top: 0.1em; }
+
+/* drop cap on the first paragraph */
+.col p.first::first-letter {
+  font-family: "Playfair Display", serif;
+  font-weight: 900;
+  float: left;
+  font-size: 3.5em;
+  line-height: 0.82;
+  padding: 0.06em 0.08em 0 0;
+}
+
+/* spacers hold open the space under the anchored photo */
+.spacer { pointer-events: none; }
+.spacer.right-half { float: right; }
+
+/* main photo: top-right under the byline, spans column 3 and half of column 2 */
+.main-photo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  border: 1px solid var(--rule);
+  background: #fff;
+  overflow: hidden;
+}
+.main-photo canvas, .main-photo img { display: block; width: 100%; height: 100%; }
+
+/* extra photos sit inside the columns */
+figure.extra {
+  margin: 8px 0 8px;
+  padding: 0;
+  break-inside: avoid;
+}
+figure.extra .frame { border: 1px solid var(--rule); background: #fff; overflow: hidden; }
+figure.extra canvas, figure.extra img { display: block; width: 100%; height: 100%; }
+figure.extra figcaption {
+  font-style: italic;
+  font-size: 0.82em;
+  line-height: 1.25;
+  text-align: left;
+  margin-top: 4px;
+}
+
+.end-mark { text-align: center; text-indent: 0; font-weight: 700; letter-spacing: 0.2em; margin-top: 0.6em; }
+
+/* ---------- footer ---------- */
+.footer {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--rule);
+  text-align: center;
+  font-size: 10.5px;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  min-height: 18px;
+}
