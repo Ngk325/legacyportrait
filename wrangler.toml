@@ -1,0 +1,19 @@
+name = "legacyportrait"
+compatibility_date = "2025-09-01"
+pages_build_output_dir = "./public"
+
+# Local dev uses emulated storage. Before deploying, create the real resources and paste the D1 id:
+#   npx wrangler d1 create legacyportrait
+#   npx wrangler r2 bucket create legacyportrait-photos
+[[d1_databases]]
+binding = "DB"
+database_name = "legacyportrait"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "legacyportrait-photos"
+
+[vars]
+ANTHROPIC_MODEL = "claude-sonnet-5-5"

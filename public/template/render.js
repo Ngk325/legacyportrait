@@ -19,7 +19,9 @@
 
   async function loadData() {
     if (window.__PORTRAIT__) return window.__PORTRAIT__;
-    const url = new URLSearchParams(location.search).get("data") || "../data/elias-haddad.json";
+    const q = new URLSearchParams(location.search);
+    if (q.get("portrait")) return (await fetch(`/api/portraits/${q.get("portrait")}/render`)).json();
+    const url = q.get("data") || "../../data/elias-haddad.json";
     return (await fetch(url)).json();
   }
 
