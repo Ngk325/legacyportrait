@@ -103,41 +103,107 @@ function extractJson(text) {
   return JSON.parse(t.slice(start, end + 1));
 }
 
-export function hasRealKey(env) {
-  const k = env.ANTHROPIC_API_KEY || "";
+const isRealKey = (k) => {
+  k = String(k || "");
   return k.length > 20 && !/^placeholder/i.test(k) && !/^sk-ant-(xxx|placeholder)/i.test(k);
+};
+export const hasAnthropicKey = (env) => isRealKey(env.ANTHROPIC_API_KEY);
+export const hasGeminiKey = (env) => isRealKey(env.GEMINI_API_KEY);
+export const hasRealKey = (env) => hasAnthropicKey(env) || hasGeminiKey(env); // "is any AI writer connected?"
+
+// Providers are tried in this order. Anthropic is the main writer; Gemini is used while we have no Anthropic key,
+// and as the backup if Anthropic fails. The customer is not told which one wrote the draft; we record it for the team.
+export function providerOrder(env) {
+  const list = [];
+  if (hasAnthropicKey(env)) list.push("anthropic");
+  if (hasGeminiKey(env)) list.push("gemini");
+  return list;
 }
 
-export async function generateDraft(env, answers, { extraPhotoCount = 0, notes = "", previous = null } = {}) {
-  if (!hasRealKey(env)) return { mode: "sample", draft: sampleDraft(answers, extraPhotoCount), model: null };
+class ProviderError extends Error {
+  constructor(message, { retry = false } = {}) { super(message); this.retry = retry; }
+}
 
+async function callAnthropic(env, userMsg) {
   const model = env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
-  const userMsg = buildUserMessage(answers, extraPhotoCount, notes, previous);
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model, max_tokens: 4096, system: SYSTEM, messages: [{ role: "user", content: userMsg }] }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    if (res.status === 401 || res.status === 403) throw new ProviderError("Anthropic key rejected");
+    if (res.status === 404) throw new ProviderError(`Anthropic model "${model}" not found`);
+    throw new ProviderError(`Anthropic HTTP ${res.status} ${body.slice(0, 120)}`, { retry: res.status >= 500 || res.status === 429 });
+  }
+  const data = await res.json();
+  return { text: (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join(""), model };
+}
+
+async function callGemini(env, userMsg) {
+  const model = env.GEMINI_MODEL || "gemini-3.6-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const headers = { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY };
+  const full = { systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: "user", parts: [{ text: userMsg }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.6, maxOutputTokens: 4096 } };
+  // plain version used if the model rejects the JSON-mode or system-instruction fields
+  const plain = { contents: [{ role: "user", parts: [{ text: SYSTEM + "\n\n" + userMsg }] }], generationConfig: { temperature: 0.6, maxOutputTokens: 4096 } };
+  let res = await fetch(url, { method: "POST", headers, body: JSON.stringify(full) });
+  if (res.status === 400) res = await fetch(url, { method: "POST", headers, body: JSON.stringify(plain) });
+  if (!res.ok) {
+    const body = await res.text();
+    if (res.status === 401 || res.status === 403) throw new ProviderError("Gemini key rejected");
+    if (res.status === 404) throw new ProviderError(`Gemini model "${model}" not found`);
+    throw new ProviderError(`Gemini HTTP ${res.status} ${body.slice(0, 120)}`, { retry: res.status >= 500 || res.status === 429 });
+  }
+  const data = await res.json();
+  const cand = (data.candidates || [])[0];
+  const text = ((cand && cand.content && cand.content.parts) || []).map((p) => p.text || "").join("");
+  if (!text) throw new ProviderError("Gemini returned no text" + (data.promptFeedback && data.promptFeedback.blockReason ? " (" + data.promptFeedback.blockReason + ")" : ""), { retry: true });
+  return { text, model };
+}
+
+const CALLERS = { anthropic: callAnthropic, gemini: callGemini };
+
+// Ask one provider for a draft, up to 3 tries (retrying server errors and unusable answers). Throws if it never works.
+async function draftFromProvider(name, env, userMsg, extraPhotoCount) {
   let lastError = "";
   for (let attempt = 0; attempt < 3; attempt++) {
     const content = attempt === 0 ? userMsg : userMsg + `\n\nYour previous reply was invalid (${lastError}). Reply with only the JSON object described.`;
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: 4096, system: SYSTEM, messages: [{ role: "user", content }] }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      if (res.status === 401 || res.status === 403) throw new Error("The Anthropic API key was rejected.");
-      if (res.status === 404) throw new Error(`Model "${model}" was not found. Set ANTHROPIC_MODEL to a current model name.`);
-      lastError = `HTTP ${res.status}`;
-      if (res.status >= 500 || res.status === 429) continue;
-      throw new Error(`Anthropic API error ${res.status}: ${body.slice(0, 200)}`);
-    }
-    const data = await res.json();
-    const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+    let out;
     try {
-      const parsed = extractJson(text);
-      const problems = validateDraft(parsed, extraPhotoCount);
-      if (problems.length) { lastError = "missing or invalid: " + problems.join(", "); continue; }
-      return { mode: "ai", draft: normalise(parsed, extraPhotoCount), model };
+      out = await CALLERS[name](env, content);
     } catch (e) {
       lastError = e.message;
+      if (e instanceof ProviderError && e.retry) continue;
+      throw e; // key problems, wrong model name, network errors: no point retrying this provider
+    }
+    try {
+      const parsed = extractJson(out.text);
+      const problems = validateDraft(parsed, extraPhotoCount);
+      if (problems.length) { lastError = "missing or invalid: " + problems.join(", "); continue; }
+      return { draft: normalise(parsed, extraPhotoCount), model: out.model };
+    } catch (e) {
+      lastError = e.message;
+    }
+  }
+  throw new Error(lastError || "no usable answer");
+}
+
+export async function generateDraft(env, answers, { extraPhotoCount = 0, notes = "", previous = null } = {}) {
+  const order = providerOrder(env);
+  if (!order.length) return { mode: "sample", draft: sampleDraft(answers, extraPhotoCount), model: null, provider: "sample", fallbackFrom: [] };
+
+  const userMsg = buildUserMessage(answers, extraPhotoCount, notes, previous);
+  const failures = [];
+  for (const name of order) {
+    try {
+      const r = await draftFromProvider(name, env, userMsg, extraPhotoCount);
+      if (failures.length) console.warn("AI fallback used:", name, "after", JSON.stringify(failures));
+      return { mode: "ai", draft: r.draft, model: r.model, provider: name, fallbackFrom: failures };
+    } catch (e) {
+      failures.push({ provider: name, reason: String(e.message || e).slice(0, 200) });
+      console.warn("AI provider failed:", name, e.message);
     }
   }
   throw new Error("The draft could not be generated right now. Please try again.");

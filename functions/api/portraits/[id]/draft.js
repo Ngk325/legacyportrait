@@ -26,7 +26,8 @@ export async function onRequestPost({ env, params, request }) {
   }
   const d = result.draft;
   const edited = { subheadline: d.subheadline_options[0] || "", body_paragraphs: d.body_paragraphs, captions: d.captions };
-  const generated = { ...d, mode: result.mode, model: result.model, at: new Date().toISOString() };
+  // provider / fallback_from are for the team only; the customer screen never shows them
+  const generated = { ...d, mode: result.mode, model: result.model, provider: result.provider, fallback_from: result.fallbackFrom, at: new Date().toISOString() };
   await env.DB.prepare("UPDATE portraits SET generated = ?, edited = ?, status = 'draft', approved_at = NULL, draft_count = draft_count + 1, regen_count = regen_count + ?, updated_at = datetime('now') WHERE id = ?")
     .bind(JSON.stringify(generated), JSON.stringify(edited), isRewrite ? 1 : 0, p.id).run();
   return json({ generated, edited, mode: result.mode, regenLeft: Math.max(0, LIMITS.regenerations - p.regen_count - (isRewrite ? 1 : 0)), supportedLength: supportedLength(a), aiConnected: hasRealKey(env) });
