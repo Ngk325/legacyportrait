@@ -2,13 +2,11 @@ name = "legacyportrait"
 compatibility_date = "2025-09-01"
 pages_build_output_dir = "./public"
 
-# Local dev uses emulated storage. Before deploying, create the real resources and paste the D1 id:
-#   npx wrangler d1 create legacyportrait
-#   npx wrangler r2 bucket create legacyportrait-photos
+# Local dev uses emulated storage. The real database and photo bucket were created in Cloudflare on 2026-10-20.
 [[d1_databases]]
 binding = "DB"
 database_name = "legacyportrait"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "b13253de-501c-40cc-9abd-4767cf2493b0"
 migrations_dir = "migrations"
 
 [[r2_buckets]]
