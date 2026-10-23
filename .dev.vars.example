@@ -9,3 +9,4 @@ GEMINI_API_KEY=placeholder
 # ANTHROPIC_MODEL=claude-sonnet-5-5
 # Optional: Cloudflare Turnstile secret. Left empty, the check is skipped.
 # TURNSTILE_SECRET=
+ADMIN_TOKEN=local-test-token
