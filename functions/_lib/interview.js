@@ -78,6 +78,8 @@ function setField(answers, k, v) {
   else answers[k] = v;
 }
 
+const PRONOUN_FORMS = { he: /\b(he|him|his|himself)\b/i, she: /\b(she|her|hers|herself)\b/i, they: /\b(they|them|their|theirs|themselves)\b/i };
+
 // Words that may open a sentence without naming anything.
 const SENTENCE_WORDS = new Set("he she they his her their it its the a an in on at after before when while as from with by for to of and but then there this that these those later born raised married we our my i".split(" "));
 
@@ -101,10 +103,12 @@ export function applyPatch(answers, patch, customerText) {
   for (const k of PATCH_KEYS) {
     let v = cleanText(patch?.[k] || "", k === "byline" || k === "name" ? 120 : 4000).trim();
     if (!v || v === getField(answers, k)) continue;
-    if (k === "pronoun") { if (["he", "she", "they"].includes(v.toLowerCase())) { setField(next, k, v.toLowerCase()); changed.push(k); } continue; }
+    // a pronoun is accepted only if the customer has used it (or a form of it), never guessed from a name
+    if (k === "pronoun") { const pr = v.toLowerCase(); if (PRONOUN_FORMS[pr] && PRONOUN_FORMS[pr].test(customerText + "\n" + JSON.stringify(factCard(answers)))) { setField(next, k, pr); changed.push(k); } continue; }
     if (!isGrounded(v, answers, customerText)) {
       const old = getField(answers, k);
-      if (old.includes(customerText)) continue;
+      // never file a non-answer ("I don't know") as a fact, or a whole sentence as a name
+      if (!customerText.trim() || SKIP.test(customerText) || k === "name" || k === "byline" || old.includes(customerText)) continue;
       v = old ? `${old}\n${customerText}` : customerText;
     }
     setField(next, k, v);
@@ -114,9 +118,10 @@ export function applyPatch(answers, patch, customerText) {
 }
 
 // One interview turn. Returns { question, answers, changed, coverage, done, provider }.
-export async function interviewTurn(env, { portraitId, answers, transcript, message }) {
+export async function interviewTurn(env, { portraitId, answers, transcript, message, question }) {
   const said = cleanText(message, LIMITS.interviewMessageChars).trim();
-  const lastQuestion = transcript.length ? transcript[transcript.length - 1].q : FIRST_QUESTION;
+  // the question the customer is answering now (each stored entry's .q is the one before it; .next is the waiting one)
+  const lastQuestion = question || (transcript.length ? transcript[transcript.length - 1].next || transcript[transcript.length - 1].q : FIRST_QUESTION);
   const r = await runJson(env, {
     job: "interview", portraitId, system: SYSTEM, schema: SCHEMA, maxTokens: 3000,
     user: wrapData("fact_card", JSON.stringify(factCard(answers), null, 2)) + "\n\n" + wrapData("last_question", lastQuestion) + "\n\n" + wrapData("customer_answer", said || "(skipped)") +

@@ -57,3 +57,18 @@ test("reminder emails have a link, plain text and the unsubscribe line", () => {
   assert.match(e.html, /href="https:\/\/x\/c"/);
   assert.doesNotMatch(draftEmail("saved", { name: "<script>", url: "u" }).html, /<script>/, "names are escaped");
 });
+
+test("pronoun is only set when the customer used it", async () => {
+  const { applyPatch } = await import("../functions/_lib/interview.js");
+  assert.equal(applyPatch({ name: "Rose Haddad" }, { pronoun: "she" }, "Rose was a baker in Dearborn.").answers.pronoun, undefined);
+  assert.equal(applyPatch({ name: "Rose Haddad" }, { pronoun: "she" }, "She baked bread every morning.").answers.pronoun, "she");
+});
+
+test("spend cap counts the call about to be made", async () => {
+  const { assertBudget, worstCaseUsd, BudgetError } = await import("../functions/_lib/ai.js");
+  const env = { MAX_AI_COST_USD: "0.40", DB: { prepare: () => ({ bind: () => ({ first: async () => ({ total: 0.39 }) }) }) } };
+  const article = worstCaseUsd("claude-sonnet-5-5", 20000, 6000);
+  assert.ok(article > 0.01);
+  await assert.rejects(assertBudget(env, "p1", article), BudgetError);
+  await assertBudget(env, "p1", 0.005); // a small call still fits under the cap
+});

@@ -28,7 +28,8 @@ async function main() {
   for (let i = 0; i < 20; i++) {
     const r = await fetch(`/api/portraits/${id}/order`).then((x) => x.json()).catch(() => ({}));
     if (r.placed && ["paid", "ready", "placed", "shipped", "delivered"].includes(r.placed.status)) return show(r.placed);
-    if (r.placed && r.placed.status === "refunded") { $("#wait").textContent = "This order was refunded."; return; }
+    // a refunded earlier order is final only if no new order is waiting for its payment to be confirmed
+    if (r.placed && r.placed.status === "refunded" && !r.order) { $("#wait").textContent = "This order was refunded."; return; }
     await sleep(i < 5 ? 1500 : 3000);
   }
   $("#wait").textContent = "Your payment is still being confirmed. We'll email you as soon as it's done; you can also refresh this page in a minute.";

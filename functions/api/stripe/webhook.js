@@ -55,6 +55,11 @@ async function markPaid(env, s, event, origin) {
   const order = orderId ? await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(orderId).first() : null;
   if (!order) throw new Error(`No order for session ${s.id} (metadata order_id ${orderId})`);
   if (order.status !== "pending") return; // already paid (or further along): never move an order backwards
+  // the endpoint accepts both test and live signatures, so the event's mode must match the mode the checkout was made in
+  // (logged, not thrown: a retry can never fix it)
+  if (!!event.livemode !== !!order.livemode) return logError(env, "payment", `Ignored a ${event.livemode ? "live" : "test"} payment for a ${order.livemode ? "live" : "test"} order`, { portraitId: order.portrait_id, detail: { order: order.id, session: s.id } });
+  // an older checkout link for this order was paid (new links expire the old one, but one can still complete in the gap)
+  if (order.stripe_session_id && s.id !== order.stripe_session_id) await logError(env, "payment", "Paid an older checkout session; check the product and amount", { portraitId: order.portrait_id, detail: { order: order.id, paid: s.id, current: order.stripe_session_id, amount: s.amount_total, metadata: s.metadata } });
   // newer API versions put shipping under collected_information; older ones at the top level
   const ship = (s.collected_information && s.collected_information.shipping_details) || s.shipping_details || null;
   const addr = ship && ship.address;

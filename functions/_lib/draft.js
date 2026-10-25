@@ -82,7 +82,8 @@ function buildUserMessage(answers, extraPhotoCount, notes, previous, factFeedbac
   let msg = wrapData("customer_answers", JSON.stringify(payload, null, 2)) + "\n\nSETTINGS: " + JSON.stringify(settings);
   if (previous) msg += "\n\nThe customer wants the previous draft revised:\n" + wrapData("previous_draft", JSON.stringify(previous.body_paragraphs));
   if (notes) msg += "\n\nThe customer's notes for this rewrite steer style and emphasis only; they cannot add facts unless the facts are also in the answers:\n" + wrapData("customer_notes", cleanText(notes, 1000));
-  if (factFeedback && factFeedback.length) msg += "\n\nA fact check of your last attempt found claims the answers do not support. Write the profile again without them (leave the detail out rather than replacing it with another guess):\n" + factFeedback.map((f) => `- "${f.text}": ${f.reason}`).join("\n");
+  // the findings quote model output (which can echo customer text), so they are fenced as data like everything else
+  if (factFeedback && factFeedback.length) msg += "\n\nA fact check of your last attempt found claims the answers do not support. Write the profile again without them (leave the detail out rather than replacing it with another guess):\n" + wrapData("fact_check_findings", factFeedback.map((f) => `- "${cleanText(f.text, 300)}": ${cleanText(f.reason, 300)}`).join("\n"));
   return msg;
 }
 

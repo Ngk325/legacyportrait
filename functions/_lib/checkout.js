@@ -1,6 +1,7 @@
 // Stripe Checkout Session for a pending order (hosted payment page: cards, Apple Pay, Google Pay).
 import { stripeKeys, stripeRequest } from "./stripe.js";
 import { orderLabel } from "./orders.js";
+import { sha256Hex } from "./auth.js";
 import { PRODUCTS } from "../../config/products.js";
 
 // Returns { url, sessionId } or null when Stripe isn't configured for the current mode.
@@ -30,8 +31,15 @@ export async function createCheckout(env, origin, portrait, order) {
     cancel_url: `${origin}/keep?id=${portrait.id}&canceled=1`,
   };
   // same order, amount and choice -> same session (a double click doesn't create two)
-  const idempotencyKey = `checkout-${order.id}-${order.amount}-${order.updated_at || ""}-${live ? "live" : "test"}`;
+  // the key covers the whole choice (hashed: options can hold a gift recipient's name), so two choices within one second never share a key
+  const choice = (await sha256Hex(`${order.amount}|${order.product_type}|${order.size || ""}|${order.options || ""}|${order.gift ? 1 : 0}|${order.gift_message || ""}`)).slice(0, 24);
+  const idempotencyKey = `checkout-${order.id}-${choice}-${order.updated_at || ""}-${live ? "live" : "test"}`;
   const s = await stripeRequest(env, secret, "POST", "/v1/checkout/sessions", params, { idempotencyKey });
   await env.DB.prepare("UPDATE orders SET stripe_session_id = ?, livemode = ? WHERE id = ?").bind(s.id, live ? 1 : 0, order.id).run();
+  // a changed choice makes a new session: close the old one so an old tab can't pay the old price for the new choice
+  if (order.stripe_session_id && order.stripe_session_id !== s.id) {
+    try { await stripeRequest(env, secret, "POST", `/v1/checkout/sessions/${encodeURIComponent(order.stripe_session_id)}/expire`); }
+    catch { /* already completed or expired: nothing to close */ }
+  }
   return { url: s.url, sessionId: s.id };
 }

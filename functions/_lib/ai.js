@@ -110,10 +110,14 @@ export function budgetUsd(env) {
   return Number.isFinite(v) && v > 0 ? v : LIMITS.maxCostUsdPerPortrait;
 }
 
-export async function assertBudget(env, portraitId) {
+// nextCallUsd: the worst case for the call about to be made, so a portrait just under the cap can't overshoot it
+export async function assertBudget(env, portraitId, nextCallUsd = 0) {
   if (!portraitId) return;
-  if ((await spentUsd(env, portraitId)) >= budgetUsd(env)) throw new BudgetError("AI spend cap reached for this portrait");
+  if ((await spentUsd(env, portraitId)) + nextCallUsd > budgetUsd(env)) throw new BudgetError("AI spend cap reached for this portrait");
 }
+
+// Upper bound for one call: input estimated generously from its length (about 3 characters per token), full output allowance.
+export const worstCaseUsd = (model, chars, maxTokens) => costUsd(model, { in: Math.ceil(chars / 3), out: maxTokens });
 
 export function extractJson(text) {
   const t = String(text || "").trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
@@ -130,8 +134,8 @@ export async function runJson(env, { job, portraitId, system, user, schema = nul
   for (const provider of providerOrder(env)) {
     let lastError = "";
     for (let attempt = 0; attempt < 3; attempt++) {
-      await assertBudget(env, portraitId);
       const content = attempt === 0 ? user : user + `\n\nYour previous reply was invalid (${lastError}). Reply with only the JSON object described.`;
+      await assertBudget(env, portraitId, worstCaseUsd(modelFor(env, job, provider), system.length + content.length, maxTokens));
       let out;
       try {
         out = await CALLERS[provider](env, job, { system, user: content, schema, maxTokens });

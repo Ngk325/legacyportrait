@@ -35,7 +35,7 @@ export async function onRequest({ env, params, request }) {
   let turn = null;
   if (providerOrder(env).length && aiTurns < LIMITS.interviewTurns && !pending.done) {
     try {
-      turn = await interviewTurn(env, { portraitId: p.id, answers: p.answers, transcript, message });
+      turn = await interviewTurn(env, { portraitId: p.id, answers: p.answers, transcript, message, question: pending.question });
     } catch (e) {
       if (!(e instanceof BudgetError)) await logError(env, "interview", e, { portraitId: p.id, detail: e.failures || null });
       turn = null; // fall through to the scripted interview
@@ -51,7 +51,9 @@ export async function onRequest({ env, params, request }) {
 
   transcript.push({ q: pending.question, a: message.slice(0, LIMITS.interviewMessageChars), field: pending.field, skipped, mode: turn.mode, next: turn.question, nextField: turn.field ?? null, done: !!turn.done, at: new Date().toISOString() });
   // an answer after approval sends the portrait back to draft, like any other edit
-  await env.DB.prepare("UPDATE portraits SET answers = ?, interview = ?, status = CASE WHEN status = 'approved' THEN 'draft' ELSE status END, approved_at = CASE WHEN status = 'approved' THEN NULL ELSE approved_at END, updated_at = datetime('now') WHERE id = ?")
+  // the AI turn can take seconds; if the portrait was paid meanwhile, its answers are frozen
+  const w = await env.DB.prepare("UPDATE portraits SET answers = ?, interview = ?, status = CASE WHEN status = 'approved' THEN 'draft' ELSE status END, approved_at = CASE WHEN status = 'approved' THEN NULL ELSE approved_at END, updated_at = datetime('now') WHERE id = ? AND status NOT IN ('paid', 'delivered')")
     .bind(JSON.stringify(turn.answers), JSON.stringify(transcript.slice(-80)), p.id).run();
+  if (w.meta && w.meta.changes === 0) return err(409, "This portrait has already been ordered.");
   return json({ transcript: transcript.map(({ q, a }) => ({ q, a })), question: turn.question, done: !!turn.done, answers: turn.answers, changed: turn.changed, available: true });
 }

@@ -24,6 +24,7 @@ async function main() {
   $$("[data-business-address]").forEach((el) => { if (cfg.businessAddress) el.textContent = cfg.businessAddress; });
   $$("[data-support-email]").forEach((el) => {
     if (cfg.supportEmail) { el.textContent = cfg.supportEmail; el.href = `mailto:${cfg.supportEmail}`; }
+    else el.removeAttribute("href"); // no address yet: plain text, not a dead link
   });
   // example portrait iframes scale to their box
   $$(".pv iframe").forEach((f) => {

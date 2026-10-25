@@ -48,7 +48,7 @@ function turnstileToken() {
   return new Promise((resolve) => tsWaiters.push(resolve));
 }
 
-const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const debounce = (fn, ms) => { let t; const d = (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; d.cancel = () => clearTimeout(t); return d; };
 function setSaved(s) { $("#saveState").textContent = s; }
 
 // ---------- draft creation / resume ----------
@@ -85,6 +85,7 @@ const saveAnswers = debounce(async () => {
 }, 700);
 // Save right now (used before writing a draft so a fast click never races the debounced autosave).
 async function saveAnswersNow() {
+  saveAnswers.cancel(); // a pending autosave firing later could overwrite answers the interview just filled in
   await ensureDraft();
   await api(`/api/portraits/${state.id}`, { method: "PUT", body: JSON.stringify({ answers: state.answers }) });
 }
@@ -316,7 +317,7 @@ function chatBubble(text, cls) { const li = document.createElement("li"); li.cla
 function renderChat(transcript, question) {
   $("#chatLog").innerHTML = "";
   for (const t of transcript) { chatBubble(t.q, "q"); chatBubble(t.a || "(skipped)", "a"); }
-  chat.question = question; chatBubble(question, "q");
+  chat.question = question; if (question) chatBubble(question, "q");
 }
 async function startChat() {
   if (!chat.on || chat.loaded) return;
@@ -332,7 +333,12 @@ async function startChat() {
     renderChat(r.transcript, r.question); // picks up exactly where the customer stopped
     maybeOfferSave(r.transcript.length);
     if (r.done) $("#chatEnough").classList.add("primary");
-  } catch { renderChat([], FIRST_QUESTION); }
+  } catch (e) {
+    // don't guess the question: the server answers against the saved conversation, so a wrong one would misfile the answer
+    renderChat([], "");
+    $$(".chat-actions button").forEach((b) => (b.disabled = true));
+    banner("We couldn't load your conversation. Please reload the page; everything you've told us is saved.", "error");
+  }
 }
 // After a couple of answers, offer to email a private link so the customer can finish later (once).
 function maybeOfferSave(answered) {
@@ -389,10 +395,12 @@ async function sendChat(message) {
   }
 }
 function bindChat() {
-  $("#chatSend").onclick = async () => { const m = $("#chatInput").value.trim(); if (!m) return; await ensureDraft(); sendChat(m); };
+  // ensureDraft can fail (network, Turnstile): show why instead of failing silently
+  const ready = async () => { try { await ensureDraft(); return true; } catch (e) { banner(e.message, "error"); return false; } };
+  $("#chatSend").onclick = async () => { const m = $("#chatInput").value.trim(); if (!m) return; if (await ready()) sendChat(m); };
   $("#chatInput").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#chatSend").click(); } });
-  $("#chatSkip").onclick = async () => { await ensureDraft(); sendChat(""); };
-  $("#chatIdk").onclick = async () => { await ensureDraft(); sendChat("I don't know."); };
+  $("#chatSkip").onclick = async () => { if (await ready()) sendChat(""); };
+  $("#chatIdk").onclick = async () => { if (await ready()) sendChat("I don't know."); };
   $("#chatEnough").onclick = () => {
     const need = [["name", "their full name"], ["relationship", "your relationship to them"], ["byline", "how your name should appear in the byline"]].filter(([k]) => !String(state.answers[k] || "").trim()).map(([, t]) => t);
     if (need.length) { chatBubble(`Before I can write it, I still need ${need.join(", ")}.`, "q"); $("#chatInput").focus(); return; }
