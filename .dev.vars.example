@@ -16,7 +16,7 @@ GEMINI_API_KEY=placeholder
 # manual | gelato_draft | gelato_live
 # FULFILLMENT_MODE=manual
 ADMIN_TOKEN=local-test-token
-# Guided interview (chat on the story step). Off until Yara approves the design; test with /create.html?interview=1
+# Guided interview (chat on the story step) is on by default; set to false to show only the form.
 # INTERVIEW_ENABLED=false
 # AI spend cap per portrait in US$ (default 0.40, see config/ai.js)
 # MAX_AI_COST_USD=0.40

@@ -28,7 +28,7 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 | No sample draft in live mode: with no provider it fails with the calm retry message and an error log entry | `draft.js`, `draft` endpoint |
 | Guided interview: `GET/POST /api/portraits/:id/interview`. Haiku reads the fact card (the story form) and the latest answer, fills fields in the customer's words, asks one question at a time, grief line, max 14 turns, 2,400 characters per answer. Transcript in `portraits.interview` (migration 0003) | `functions/_lib/interview.js` |
 | Interview guard: a field the model fills is accepted only if every capitalised word (sentence starts included), year and number in it was already on the card or in what the customer just wrote; otherwise the customer's own words are stored instead | `interview.js` |
-| Chat UI on the story step with Send / Skip / I don't know / That's enough; the form below is titled "What we know so far (edit anything)" and updates live. **Off by default** (`INTERVIEW_ENABLED`), try it with `/create.html?interview=1` | `app.js`, `create.html` |
+| Chat UI on the story step with Send / Skip / I don't know / That's enough; the form below is titled "What we know so far (edit anything)" and updates live. **On by default since Yara approved the design (2026-10-25)**; `INTERVIEW_ENABLED=false` turns it off, and it hides itself when no AI provider is set | `app.js`, `create.html` |
 | Pre-existing mobile bug fixed: the live preview was `position: sticky` in the one-column layout and covered the editor while scrolling | `app.css` |
 | Fixture: Wanis Ganim facts from Appendix E, with the cut-off age at death and great-grandchildren count deliberately left out | `data/fixtures/wanis-ganim.facts.json` |
 | Fake Anthropic server for local tests of these flows | `scripts/mock-ai.mjs` |
@@ -46,7 +46,17 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 | Local: spend cap ($0.39 already spent) | rewrite and interview both refused with 429 and the friendly message; `ai-budget` error logged |
 | Chromium 360×760: chat → form fills → draft → "Please check" box | works, no console errors, no horizontal scroll |
 
+### Real runs on the preview (2026-10-25, after the keys were added to Preview)
+Test portraits were inserted straight into D1 (tagged `utm.test = wp2-seed-*`) because Preview enforces Turnstile, then driven through the real API with their edit tokens.
+
+| Seed | Result |
+|---|---|
+| Elias Haddad | 200, Gemini (Anthropic refused: credit too low), fact check by Gemini, **0 unsupported, 1 attempt**. No "stone"/"homes"/"family business" this time; the word-target gap chip is gone. Remaining softness: subheadline "served his community", closing "steadfast devotion… quiet generosity" (characterisation, not facts) |
+| Wanis Ganim (gold case) | 200, Gemini, 390 words, **0 unsupported**; uses only clipping facts and leaves out the cut-off age at death and great-grandchildren count |
+| thin, italian, nonlatin, emoji, injection, grief | **502: both providers refused.** Anthropic "credit balance is too low"; Gemini **HTTP 429 "You exceeded your current quota, please check your plan and billing details"** (quota exhausted after two drafts: looks like a Gemini key without billing). The customer saw the calm retry message and the team error log has both reasons, as designed |
+
 ### Not verified (and why)
+0. **Blocked on provider billing (Nick):** the Anthropic key in Preview still has no credit, and the Gemini key hit its quota after two drafts. Until both work, the remaining seeds (thin, rich, non-Latin, emoji, injection, grief), the interview with real models, prompt-cache hits and cost per portrait can't be measured.
 1. **Real model behaviour** (interview quality, fact-check recall, injection attempts, cost per portrait, F-04/F-05/F-06 with 8 seed families, F-08 with 50 portraits): the keys are Cloudflare secrets I can't read, Preview has none, and the Anthropic account has no credit. All the AI logic above was tested against the fake server and stubbed `fetch`, not the real models.
 2. **Prompt caching savings**: needs real Anthropic calls (`cache_read_input_tokens` > 0 on the second call).
 3. ~~Migration 0003 is not applied to the real D1.~~ Applied 2026-10-25 after Nick's go-ahead (`portraits.interview` exists); the live site still creates and reads drafts (201/200).

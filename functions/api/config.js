@@ -10,7 +10,7 @@ export async function onRequestGet({ env }) {
   return json({
     brand: { company: BRAND.company, product: BRAND.product },
     turnstileSiteKey: env.TURNSTILE_SITE_KEY || "",
-    interview: String(env.INTERVIEW_ENABLED || "").toLowerCase() === "true", // guided chat (needs Yara's design OK before it goes on for everyone)
+    interview: String(env.INTERVIEW_ENABLED || "").toLowerCase() !== "false", // guided chat: on (Yara approved 2026-10-25); INTERVIEW_ENABLED=false turns it off
     liveMode: await isLiveMode(env),
     orderBy: { physical: pick(nextOrderBy(now, "physical")), digital: pick(nextOrderBy(now, "digital")), missed: missedHoliday(now) },
   });
