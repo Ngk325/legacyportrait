@@ -33,7 +33,7 @@ export async function onRequestGet({ env, params, request }) {
   try {
     const out = await renderPrint(env, url.origin, buildRenderData(p), size, format);
     await env.PHOTOS.put(key, out.body, { httpMetadata: { contentType: out.type }, customMetadata: { fitOk: String(out.fit?.ok), bodyPt: String(out.fit?.bodyPt) } });
-    return new Response(out.body, { headers: { ...headers(out.type), "x-fit-ok": String(out.fit?.ok), "x-body-pt": String(out.fit?.bodyPt) } });
+    return new Response(out.body, { headers: { ...headers(out.type), "x-fit-ok": String(out.fit?.ok), "x-body-pt": String(out.fit?.bodyPt), "x-browser": out.how } });
   } catch (e) {
     return err(502, "We couldn't make the print file just now. Please try again in a minute.", { detail: String(e.message || e).slice(0, 200) });
   }

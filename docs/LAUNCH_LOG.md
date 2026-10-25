@@ -4,6 +4,58 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 
 ---
 
+## 2026-10-25 · WP0 (part 2): why Pages builds fail, deployed Browser Run
+
+### Why every Pages build since Phase 3a failed in ~1 s
+Read from the build logs with the Cloudflare API token. It is **not** the `[browser]` binding:
+
+```
+No build command specified. Skipping build step.
+Found Functions directory at /functions. Uploading.
+✘ [ERROR] Could not resolve "@cloudflare/puppeteer"   _lib/print.js:3
+Failed building Pages Functions.
+```
+
+The Pages project has an empty build command, so Pages never runs `npm install`, so `node_modules` is missing when it bundles the Functions. Phase 2 deployed fine only because nothing imported an npm package before `print.js`. Every build since (`phase-3-sell`, `main`, this branch) fails the same way.
+
+**Fix (needs a dashboard change, I was not allowed to make it from here):** Pages project `legacyportrait` → Settings → Build → Build command: `npm ci --omit=dev` (output directory stays `public`). Then retry the latest deployment of this branch.
+
+### Deployed preview (direct upload with wrangler, same code)
+- `https://claude-pensive-planck-es8y45.legacyportrait.pages.dev`
+- Deployment bindings reported by the API: `BROWSER`, `DB` (legacyportrait), `PHOTOS` (legacyportrait-photos), `nodejs_compat`. **Pages honours `[browser]` from `wrangler.toml`.** No separate render Worker needed.
+
+### Verified on the deployed preview
+Test portrait `cdbdce70…` created through the public API (sample draft, approved), then marked `paid` directly in D1 (tagged `utm.test = wp0-browser-run`) because the preview has no `ADMIN_TOKEN`.
+
+| Check | Result |
+|---|---|
+| `/print` without token, approved but unpaid | 403 |
+| 11x14 PDF | 200 in 6.4 s, 1 page, 792×1008 pt, `x-fit-ok: true`, body 12 pt |
+| 8x10 / 16x20 PDF | 1 page each, 576×720 / 1152×1440 pt |
+| 11x14 / 8x10 / 16x20 PNG | 3300×4200 / 2400×3000 / 4800×6000 px |
+| Same request again | from R2 cache in 0.49 s |
+| Deployed 11x14 PDF vs `scripts/render.py` with the same render JSON, rasterised at 100 dpi | **0 px differ** (1100×1400) |
+| Requests fired back to back | 2nd and 3rd got 502: `Unable to create new browser: code: 429: Rate limit exceeded`; fine after ~20 s |
+
+### Change made because of the 429
+`_lib/print.js` now reuses an idle Browser Run session (`puppeteer.sessions` + `connect`), launches with `keep_alive: 60 s` and disconnects instead of closing, and waits 12 s and retries once if launching is rate limited. `x-browser: reused | launched | launched after wait` is on each freshly rendered response. **Only partly proven:** the first burst after the change still hit one 429 (it worked on a retry), and the run that would show whether reuse happens was cut off. Check the `x-browser` header on the next burst. The real cure is the Workers paid plan (higher launch limits), already approved.
+
+### Real AI drafts: still not run
+- **Preview** environment has **no secrets at all** (no `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `ADMIN_TOKEN`). They are set on **Production** only. A preview draft therefore comes back in sample mode.
+- **Production** (`legacyportrait.pages.dev`, still the Oct 20 `phase-2-generate` build) also returned **sample mode** for a test portrait (`ecb3ea18…`, `utm.test = wp0-real-ai`). Most likely the keys were added after that deployment. Pages only applies secrets to new deployments. Possibly the values are placeholders (<20 chars).
+- **To unblock (Nick):** either (a) add `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` and `ADMIN_TOKEN` to the **Preview** environment and redeploy this branch, or (b) fix the build command and let `main` redeploy Production. To test Gemini on its own, the Anthropic key must be missing for that environment (Gemini is only the backup), so (a) with only the Gemini key first, then both, is the cleanest.
+
+### Test data left behind (production D1/R2)
+Portraits `cdbdce7016990761b4f43c7cbe4669c3` (status `paid`, test) and `ecb3ea18d6d104faf26e28bb0832a61e` (draft, test), their photo, and cached print files under `prints/v2/cdbdce70…/`. Safe to delete; the retention job (WP9) would remove them anyway.
+
+### Risk list changes
+- Risk 1 (Browser Run on Pages): **closed**, works.
+- New, High: **Pages build command missing**. Every deploy fails until it is set. Production is stuck on the Oct 20 build.
+- New, Medium: **Browser Run launch rate limit** on the free plan. Mitigated in code; fully fixed by the paid plan.
+- Risk 4 (real-key AI test): still open, now blocked on secrets for the right environment.
+
+---
+
 ## 2026-10-25 · WP0 Reality check
 
 ### Done
