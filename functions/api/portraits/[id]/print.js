@@ -5,6 +5,7 @@ import { renderPrint, SIZES } from "../../../_lib/print.js";
 // GET /api/portraits/:id/print?size=11x14&format=pdf|png
 // Only for paid orders (customer download / Gelato file) or the team (ADMIN_TOKEN header or ?token=).
 // Results are cached in R2 so each file is rendered once (Browser Run time is limited).
+// Bump the "v2" in the key when the rendering itself changes, so old files are not served.
 export async function onRequestGet({ env, params, request }) {
   const url = new URL(request.url);
   const size = url.searchParams.get("size") || "11x14";
@@ -22,7 +23,7 @@ export async function onRequestGet({ env, params, request }) {
   if (!p.edited || !p.edited.body_paragraphs?.length) return err(409, "This portrait has no approved text yet.");
 
   const stamp = (p.updated_at || "").replace(/\D/g, "");
-  const key = `prints/${p.id}/${stamp}-${size}.${format}`;
+  const key = `prints/v2/${p.id}/${stamp}-${size}.${format}`;
   const headers = (type) => ({ "content-type": type, "cache-control": "private, no-store", "x-robots-tag": "noindex", "content-disposition": `attachment; filename="legacy-portrait-${size}.${format}"` });
 
   const cached = await env.PHOTOS.get(key);
