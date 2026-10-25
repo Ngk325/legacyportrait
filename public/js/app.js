@@ -42,6 +42,7 @@ async function startTurnstile() {
 function turnstileToken() {
   if (!config.turnstileSiteKey) return Promise.resolve("");
   if (tsToken) { const t = tsToken; tsToken = null; return Promise.resolve(t); }
+  setSaved("Waiting for the check below…");
   return new Promise((resolve) => tsWaiters.push(resolve));
 }
 
