@@ -49,8 +49,11 @@ Real draft for test portrait `ecb3ea18…` (Elias Haddad answers):
 
 **Found by that test:** heic2any is an emscripten asm.js build and needs `eval`; the strict CSP blocked it and HEIC uploads failed. Fixed by allowing `'unsafe-eval'` on `/create` only (our code never evals). A WebAssembly HEIC decoder would let this narrow to `'wasm-unsafe-eval'`; noted for later.
 
+### Applied and re-verified on the deployed preview (after Nick's go-ahead)
+`wrangler d1 migrations apply DB --remote`: 0001 ✅ (no-op, now recorded), 0002 ✅. Preview `claude-pensive-planck-es8y45`: create 201 + cookie, PUT with/without cookie 200/403, SVG-as-JPG 415, real photo 201, draft 200, approve 200, `/api/config` ok, CSP and `noindex` on `/create.html`, HEIC script served. The live site (`main`) still creates drafts (201) on the migrated schema.
+
 ### Not done / blocked
-1. **Migration 0002 is not applied to the real D1.** I was not allowed to run it from here (production change). It must be applied **before** this code is deployed anywhere, because the preview shares the production database and creating a draft writes `edit_token_hash`. Command: `npx wrangler d1 migrations apply DB --remote` (it will also record 0001, which is `IF NOT EXISTS` and safe). After that, I can deploy the preview and repeat the checks above on it.
+1. ~~Migration 0002 is not applied to the real D1.~~ Done, see above. I was not allowed to run it from here (production change). It must be applied **before** this code is deployed anywhere, because the preview shares the production database and creating a draft writes `edit_token_hash`. Command: `npx wrangler d1 migrations apply DB --remote` (it will also record 0001, which is `IF NOT EXISTS` and safe). After that, I can deploy the preview and repeat the checks above on it.
 2. Turnstile real keys: create a Turnstile widget for the Pages domain (and later the real domain) and set `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET`. Until then the check is off.
 3. "Delete my data", retention, Cloudflare Access for `/admin`: later WPs as planned.
 4. Live UI check on a real iPhone (Safari) and Android: UAT 1.
