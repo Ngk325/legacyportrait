@@ -49,7 +49,7 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 ### Not verified (and why)
 1. **Real model behaviour** (interview quality, fact-check recall, injection attempts, cost per portrait, F-04/F-05/F-06 with 8 seed families, F-08 with 50 portraits): the keys are Cloudflare secrets I can't read, Preview has none, and the Anthropic account has no credit. All the AI logic above was tested against the fake server and stubbed `fetch`, not the real models.
 2. **Prompt caching savings**: needs real Anthropic calls (`cache_read_input_tokens` > 0 on the second call).
-3. **Migration 0003 is not applied to the real D1.** Without it the interview endpoint fails to save (everything else works).
+3. ~~Migration 0003 is not applied to the real D1.~~ Applied 2026-10-25 after Nick's go-ahead (`portraits.interview` exists); the live site still creates and reads drafts (201/200).
 
 ### Known limits
 - The code check can't tell a name at the very start of a sentence from ordinary capitalisation, so it skips those; the AI fact check covers them. The interview guard checks sentence starts too.
