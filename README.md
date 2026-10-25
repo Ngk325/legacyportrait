@@ -58,7 +58,7 @@ docs/HANDOFF.md                 current state, open items, next steps
 | `GET/PUT /api/portraits/:id` | Read / save answers and edited text. Editing after approval resets it to draft |
 | `POST /api/portraits/:id/claim` | Trade a private-link token for this device's edit cookie |
 | `POST/GET/DELETE /api/portraits/:id/photos/:n` | Upload (JPG/PNG/WebP checked by content, ≤8 MB, HEIC converted in browser), stream, remove. Slots 0–2 |
-| `GET/POST /api/portraits/:id/interview` | Guided interview: transcript and current question / answer it (`{message}`, `""` = skip). Updates the story fields (the fact card) |
+| `GET/POST /api/portraits/:id/interview` | The story chat: saved conversation and the waiting question / answer it (`{message}`, `""` = skip). Each answer is saved into the story fields at once. AI editor when available, otherwise the scripted questions |
 | `POST /api/portraits/:id/draft` | Generate (or regenerate, max 5) the AI draft, fact-check it and rewrite if needed. Claims still unsupported come back in `generated.unsupported`; provider/model are team-only fields |
 | `POST /api/portraits/:id/approve` | Customer confirms they read the text and have rights to the photos |
 | `GET /api/portraits/:id/render` | JSON the template draws from (live preview) |
@@ -66,6 +66,9 @@ docs/HANDOFF.md                 current state, open items, next steps
 | `POST /api/admin/retention` | Team only. Dry run of the retention rules; `?apply=1` deletes, `&tests=1` also removes portraits tagged as tests. Called daily by `workers/retention-cron` |
 | `GET /api/products` | The offer from `config/products.js`, order-by dates and an arrival estimate |
 | `GET/POST /api/portraits/:id/order` | The customer's chosen format, saved as one pending order (priced on the server) |
+| `POST /api/portraits/:id/email` | "Save your progress": links the draft to an email and sends the private link to finish on any device |
+| `GET/POST /api/unsubscribe` | Stop reminder emails (signed link in every reminder; POST = one-click) |
+| `POST /api/admin/followups` | Team only. Due reminder emails (dry run unless `?apply=1`); called hourly by `workers/retention-cron` |
 | `POST /api/stripe/webhook` | Stripe events (signature-checked, each processed once): paid, async paid/failed, refunded, dispute |
 | `GET/POST /api/admin/config` | Team only. Read switches; `{"live_mode":"on"\|"off"}` flips the admin half of the LIVE_MODE gate |
 

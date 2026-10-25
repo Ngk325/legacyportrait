@@ -49,9 +49,21 @@
         <button type="button" class="btn" id="chatIdk">I don't know</button>
         <button type="button" class="btn" id="chatEnough">That's enough, write my draft</button>
       </div>
-      <h2 class="card-title">What we know so far (edit anything)</h2>
+      <p class="muted small" id="chatSaved">Your answers are saved as you go. You can stop at any time and come back to this page.</p>
+      <form id="saveBox" class="savebox" hidden>
+        <b>Want to finish later?</b>
+        <p class="muted small">We'll email you a private link so you can pick up where you left off, on any device.</p>
+        <label class="field"><span>Email</span><input type="email" id="saveEmail" autocomplete="email" required maxlength="254"></label>
+        <label class="check"><input type="checkbox" id="saveMarketing"> <span>Send me tips and holiday deadlines. Unsubscribe anytime.</span></label>
+        <div class="chat-actions"><button type="submit" class="btn">Email me my link</button><button type="button" class="btn" id="saveLater">Not now</button></div>
+      </form>
+      <p class="approved" id="saveDone" hidden></p>
+      <h2 class="card-title">What we know so far</h2>
       <p class="muted" id="cardEmpty">As you answer, the facts appear here.</p>
+      <dl class="facts" id="factList"></dl>
+      <button type="button" class="btn small" id="toggleForm" aria-expanded="false" aria-controls="storyForm">Review or edit your answers</button>
     </div>
+    <div id="storyForm">
     <div class="grid2">
       <label class="field"><span>Their full name <em>required</em></span><input data-a="name" maxlength="120" autocomplete="off"></label>
       <label class="field"><span>You are their… <em>required</em></span><input data-a="relationship" maxlength="80" placeholder="granddaughter, great-grandson, son…"></label>
@@ -79,6 +91,7 @@
       <label class="field"><span>Legacy: writings, recipes, what the family still carries</span><textarea data-d="legacy" rows="3"></textarea></label>
       <label class="field"><span>Paste existing material (obituary, letters, notes)</span><textarea data-a="paste" rows="6"></textarea></label>
     </details>
+    </div>
     <div class="nav"><button class="btn" data-prev>Back</button><button class="btn primary" data-next>Next: style</button></div>
   </section>
 

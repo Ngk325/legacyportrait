@@ -4,6 +4,34 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 
 ---
 
+## 2026-10-25 · Story step is the chat; answers saved; follow-up emails (Nick's request)
+
+### What changed
+- **The chat asks the story questions; the form is no longer shown under it.** The form is folded away behind "Review or edit your answers" (same data), and a short read-only "What we know so far" list fills in as the customer answers.
+- **The chat always works.** With an AI provider it is the AI editor; without one (today: both providers blocked on billing), or if an AI call fails, a **scripted interview** asks every story-form question in turn (name, relationship, pronoun, born, died, origins, work, family, story, three words, legacy, byline) and stores each answer straight into its field. Optional skips aren't asked again; required ones (name, relationship, byline) are asked again at the end. The AI now tags each question with the field it is about, so if the AI drops out mid-conversation the next answer still lands in the right field. Nothing typed is ever lost (an answer to an untagged question is kept in the pasted-material box).
+- **Saved and resumable.** Every answer is saved to D1 the moment it is sent; the conversation is stored with the waiting question, so reopening the draft (or the emailed link on another device) continues exactly there.
+- **"Want to finish later?"** After two answers the chat offers to email a private link (email, unticked "tips and holiday deadlines" box). The link's token is derived from `LINK_SECRET`, so reminder emails can rebuild it without storing it. Without email set up, the page shows the private link instead.
+- **Follow-up emails** (`functions/_lib/followups.js`, master prompt 5): drafts with an email get reminders after 24 h, 72 h and 7 days without activity; approved-but-unpaid portraits after 30 min and 24 h. Each once, in order, activity resets the clock, stopped by payment or unsubscribe, never for drafts older than 30 days. Signed unsubscribe link and one-click header in every reminder. **Reminders refuse to send until the business postal address is in `config/brand.js`** (CAN-SPAM). Sent by Resend once configured; until then nothing goes out.
+- `workers/retention-cron` now runs hourly: follow-ups every hour, retention at 07:17 UTC.
+- Migration `0004_followups.sql`: `customers.unsubscribed_at`, unique email index. **Not yet applied to the real D1.**
+
+### Verified (local, no AI keys, fake Resend/Stripe server)
+| Check | Result |
+|---|---|
+| `npm test` | 41/41 (scheduler timing and order, scripted interview incl. skips and re-asking required fields, no-loss rule, question wording, email templates and escaping) |
+| Chromium 360 px, chat-first | form hidden on the story step; first question asked; after 2 answers the save box appears; email sent with the private link; facts list fills; no console errors; no horizontal scroll |
+| Second device opens the emailed link | edit access granted, chat resumes at the exact waiting question (9 bubbles), new answer saved; "Review or edit your answers" opens the form with the saved values |
+| Follow-ups: draft idle 25 h | dry run lists `remind-24h`; with no business address: skipped (not sent); with a (temporary, test-only) address: sent with List-Unsubscribe headers; re-run sends nothing more |
+| Unsubscribe | tampered link 400; real link 200 "You're unsubscribed"; one-click POST 200; afterwards no reminders even at 8 days idle |
+| AI then AI down | AI turn fills name/relationship/pronoun and asks about birth (tagged `born`); with the AI stopped, the answer lands in `born` and the scripted questions continue |
+| Team endpoints | 401 without the token |
+
+### Known limits
+- In scripted mode an answer is stored under the question it answers (like a form): if someone answers a different question, it goes in the asked field; they can fix it under "Review or edit your answers". The AI editor files wandering answers better.
+- Reminder emails need: Resend + a verified sending domain (after the domain is bought), `LINK_SECRET`, `MAIL_FROM`, `SITE_URL`, the business address, migration 0004 on the real D1, and the cron Worker deployed.
+
+---
+
 ## 2026-10-25 · WP3, WP4, WP7, WP9 (built while AI billing is paused)
 
 ### WP3 Preview-then-pay

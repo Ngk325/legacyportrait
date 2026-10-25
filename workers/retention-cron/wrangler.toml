@@ -1,3 +1,4 @@
+# Follow-up emails (hourly) and data retention (daily).
 # Deploy (Nick): cd workers/retention-cron && npx wrangler deploy && npx wrangler secret put ADMIN_TOKEN
 name = "legacyportrait-retention"
 main = "index.js"
@@ -7,4 +8,4 @@ compatibility_date = "2025-09-01"
 SITE_URL = "https://legacyportrait.pages.dev"
 
 [triggers]
-crons = ["17 7 * * *"]   # 07:17 UTC daily (about 3 a.m. in New York)
+crons = ["17 * * * *"]   # hourly at :17; follow-ups every hour, retention in the 07:17 UTC run

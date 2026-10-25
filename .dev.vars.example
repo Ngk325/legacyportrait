@@ -30,3 +30,10 @@ ADMIN_TOKEN=local-test-token
 # STRIPE_TAX_ENABLED=false                    (prices include tax; Nick's decision)
 # Local tests only: node scripts/mock-stripe.mjs 8798
 # STRIPE_API_BASE=http://127.0.0.1:8798
+# Saved drafts and follow-up emails
+# LINK_SECRET=<long random string>     signs the "finish later" links and unsubscribe links (required for reminders)
+# RESEND_API_KEY=re_...                  Resend; nothing is sent until this and MAIL_FROM are set
+# MAIL_FROM=The Legacy Press <hello@yourdomain>
+# SITE_URL=https://yourdomain            base for links in reminder emails (defaults to the request's origin)
+# Local tests only: the fake server in scripts/mock-stripe.mjs also answers Resend's /emails
+# RESEND_API_BASE=http://127.0.0.1:8798

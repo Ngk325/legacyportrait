@@ -72,7 +72,7 @@ async function createDraft() {
 
 async function loadDraft(id) {
   const d = await api(`/api/portraits/${id}`);
-  state.id = d.id; state.status = d.status; state.canEdit = d.canEdit !== false;
+  state.id = d.id; state.status = d.status; state.canEdit = d.canEdit !== false; state.hasEmail = !!d.hasEmail;
   state.answers = { detail: {}, folio: {}, length: "standard", tone: "classic", firstPerson: true, printSize: "11x14", ...d.answers };
   state.answers.detail = d.answers.detail || {}; state.answers.folio = d.answers.folio || {};
   state.photos = d.photos; state.edited = d.edited; state.generated = d.generated; state.regenLeft = d.regenLeft; state.supportedLength = d.supportedLength;
@@ -322,19 +322,40 @@ async function startChat() {
   if (!chat.on || chat.loaded) return;
   chat.loaded = true;
   $("#chat").hidden = false;
+  setFormOpen(false);
   const name = (state.answers.name || "").split(/\s+/)[0];
   $("#chatIntro").textContent = `Hi, I'm your ${config.brand.company || "family newspaper"} editor. I'll ask a few questions about ${name || "them"}. Answer in your own words, short is fine.`;
-  updateCardEmpty();
+  renderFacts();
   if (!state.id) { renderChat([], FIRST_QUESTION); return; }
   try {
     const r = await api(`/api/portraits/${state.id}/interview`);
-    if (!r.available) { $("#chat").hidden = true; return; } // no AI writer connected: the form alone
-    renderChat(r.transcript, r.question);
+    renderChat(r.transcript, r.question); // picks up exactly where the customer stopped
+    maybeOfferSave(r.transcript.length);
+    if (r.done) $("#chatEnough").classList.add("primary");
   } catch { renderChat([], FIRST_QUESTION); }
 }
-function updateCardEmpty() {
-  const any = ["name", "born", "died", "origins", "work", "family", "story"].some((k) => state.answers[k]) || Object.values(state.answers.detail || {}).some(Boolean);
-  $("#cardEmpty").hidden = any;
+// After a couple of answers, offer to email a private link so the customer can finish later (once).
+function maybeOfferSave(answered) {
+  if (state.hasEmail || chat.saveDismissed || answered < 2) return;
+  $("#saveBox").hidden = false;
+}
+// The form is the same data as the chat; in chat mode it stays folded away behind "Review or edit your answers".
+function setFormOpen(open) {
+  $("#storyForm").hidden = !open;
+  $("#toggleForm").setAttribute("aria-expanded", String(open));
+  $("#toggleForm").textContent = open ? "Hide the answer form" : "Review or edit your answers";
+}
+const FACT_LABELS = [["name", "Name"], ["relationship", "You are their"], ["born", "Born"], ["died", "Died"], ["origins", "Origins"], ["work", "Work"], ["family", "Family"], ["story", "A family story"], ["character", "In three words"], ["legacy", "What the family carries"], ["byline", "Byline"]];
+function renderFacts() {
+  const dl = $("#factList"); dl.innerHTML = "";
+  for (const [k, label] of FACT_LABELS) {
+    const v = String((k === "character" || k === "legacy" ? (state.answers.detail || {})[k] : state.answers[k]) || "").trim();
+    if (!v) continue;
+    const dt = document.createElement("dt"); dt.textContent = label;
+    const dd = document.createElement("dd"); dd.textContent = v.length > 160 ? v.slice(0, 157) + "…" : v;
+    dl.append(dt, dd);
+  }
+  $("#cardEmpty").hidden = dl.children.length > 0;
 }
 async function sendChat(message) {
   if (chat.busy) return;
@@ -350,7 +371,7 @@ async function sendChat(message) {
     const keep = { printSize: state.answers.printSize };
     state.answers = { detail: {}, folio: {}, ...r.answers, ...keep };
     state.answers.detail = r.answers.detail || {}; state.answers.folio = r.answers.folio || {};
-    fillInputs(); updateCardEmpty(); setSaved("Saved");
+    fillInputs(); renderFacts(); setSaved("Saved");
     for (const k of r.changed || []) {
       const el = $(`[data-a="${k}"]`) || $(`[data-d="${k}"]`);
       if (!el) continue;
@@ -358,7 +379,9 @@ async function sendChat(message) {
       el.classList.add("filled"); setTimeout(() => el.classList.remove("filled"), 2500);
     }
     chat.question = r.question; chatBubble(r.question, "q");
+    maybeOfferSave(r.transcript.length);
     if (r.done) $("#chatEnough").classList.add("primary");
+    if (state.answers.name) $("#chatIntro").textContent = $("#chatIntro").textContent.replace(/about them\./, `about ${state.answers.name.split(/\s+/)[0]}.`);
   } catch (e) {
     typing.remove(); banner(e.message, "error");
   } finally {
@@ -370,7 +393,25 @@ function bindChat() {
   $("#chatInput").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#chatSend").click(); } });
   $("#chatSkip").onclick = async () => { await ensureDraft(); sendChat(""); };
   $("#chatIdk").onclick = async () => { await ensureDraft(); sendChat("I don't know."); };
-  $("#chatEnough").onclick = () => go("style");
+  $("#chatEnough").onclick = () => {
+    const need = [["name", "their full name"], ["relationship", "your relationship to them"], ["byline", "how your name should appear in the byline"]].filter(([k]) => !String(state.answers[k] || "").trim()).map(([, t]) => t);
+    if (need.length) { chatBubble(`Before I can write it, I still need ${need.join(", ")}.`, "q"); $("#chatInput").focus(); return; }
+    go("style");
+  };
+  $("#toggleForm").onclick = () => setFormOpen($("#storyForm").hidden);
+  $("#saveLater").onclick = () => { $("#saveBox").hidden = true; chat.saveDismissed = true; };
+  $("#saveBox").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $("#saveBox button[type=submit]"); btn.disabled = true;
+    try {
+      const r = await api(`/api/portraits/${state.id}/email`, { method: "POST", body: JSON.stringify({ email: $("#saveEmail").value, marketing: $("#saveMarketing").checked }) });
+      state.hasEmail = true; $("#saveBox").hidden = true;
+      const done = $("#saveDone"); done.hidden = false;
+      if (r.emailed) done.textContent = `Saved. We've emailed your private link to ${$("#saveEmail").value}.`;
+      else { done.textContent = "Saved. Keep this private link to finish on any device: "; const a = document.createElement("a"); a.href = r.link; a.textContent = "your draft"; done.appendChild(a); }
+    } catch (err) { banner(err.message, "error"); } finally { btn.disabled = false; }
+  };
+  $$("#storyForm [data-a], #storyForm [data-d]").forEach((el) => el.addEventListener("input", renderFacts));
 }
 
 // ---------- init ----------

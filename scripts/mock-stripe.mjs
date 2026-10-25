@@ -1,4 +1,4 @@
-// Fake Stripe API for local tests (never used in production): answers POST /v1/checkout/sessions and
+// Fake Stripe (and Resend /emails) API for local tests (never used in production): answers POST /v1/checkout/sessions and
 // keeps the last request so a test can inspect it at GET /_last.
 // Run: node scripts/mock-stripe.mjs 8798, then STRIPE_API_BASE=http://127.0.0.1:8798 and STRIPE_SECRET_KEY_TEST=sk_test_... in .dev.vars
 import http from "node:http";
@@ -8,6 +8,11 @@ http.createServer((req, res) => {
   req.on("data", (c) => (body += c));
   req.on("end", () => {
     if (req.url === "/_last") { res.writeHead(200, { "content-type": "application/json" }); return res.end(JSON.stringify(last)); }
+    if (req.method === "POST" && req.url === "/emails") { // Resend
+      last = { auth: req.headers.authorization, email: JSON.parse(body) };
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ id: "email_mock_" + ++n }));
+    }
     if (req.method === "POST" && req.url === "/v1/checkout/sessions") {
       const p = Object.fromEntries(new URLSearchParams(body));
       last = { auth: req.headers.authorization, idempotency: req.headers["idempotency-key"], params: p };

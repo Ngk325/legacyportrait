@@ -6,7 +6,7 @@ const publicView = (p) => ({
   id: p.id, status: p.status, answers: p.answers, generated: p.generated, edited: p.edited,
   photos: p.photos.map((x, i) => ({ index: i, name: x.name, width: x.width, height: x.height })),
   regenLeft: Math.max(0, LIMITS.regenerations - p.regen_count), draftCount: p.draft_count,
-  supportedLength: supportedLength(p.answers), approvedAt: p.approved_at,
+  supportedLength: supportedLength(p.answers), approvedAt: p.approved_at, hasEmail: !!p.email,
 });
 
 export async function onRequestGet({ env, params, request }) {

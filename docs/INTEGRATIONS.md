@@ -34,5 +34,11 @@ Hard rule 4: verify third-party API details before relying on them. ✅ = checke
 | Apple Pay / Google Pay | ⏳ | Enabled in the Stripe dashboard (payment methods); Checkout shows them automatically on supported devices |
 | Real test-mode payment | ⏳ | Needs `STRIPE_SECRET_KEY_TEST` and `STRIPE_WEBHOOK_SECRET_TEST` |
 
-## Gelato, Resend, Meta, GA4
-Not integrated yet (WP5, WP6, WP8). The Gelato facts in the master prompt (section 7.4) are from Gelato's docs as read for that prompt; re-verify when building WP5.
+## Resend (email)
+| Item | Status | Notes |
+|---|---|---|
+| `POST https://api.resend.com/emails` with `Authorization: Bearer`, JSON `from`, `to[]`, `subject`, `html`, `text`, `headers` | ⏳ VERIFY | Written from Resend's documented API shape; tested only against the local fake server. Verify on the first real send (and set up SPF/DKIM/DMARC on the sending domain) |
+| `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers | ⏳ | One-click POST handled at `/api/unsubscribe` |
+
+## Gelato, Meta, GA4
+Not integrated yet (WP5, WP8). The Gelato facts in the master prompt (section 7.4) are from Gelato's docs as read for that prompt; re-verify when building WP5.

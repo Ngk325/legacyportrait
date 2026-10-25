@@ -28,7 +28,7 @@ http.createServer((req, res) => {
       else if (/born/i.test(said)) patch.born = said;
       else if (said && !/skipped|don't know/i.test(said)) patch.work = said + " He also ran for mayor of Boston."; // an invention the server must refuse
       const sad = /passed away last|died last/i.test(said);
-      return reply(res, { facts_patch: patch, next_question: (sad ? "I'm sorry for your loss. We can keep this short, or skip any question. " : "") + "Where and when was he born?", coverage: { origins: 1, family: 0, work: 0, story: 0, character: 0, legacy: 0 }, done: false }, { input_tokens: 1200, output_tokens: 150, cache_read_input_tokens: 800, cache_creation_input_tokens: 0 });
+      return reply(res, { facts_patch: patch, next_question: (sad ? "I'm sorry for your loss. We can keep this short, or skip any question. " : "") + "Where and when was he born?", next_field: "born", coverage: { origins: 1, family: 0, work: 0, story: 0, character: 0, legacy: 0 }, done: false }, { input_tokens: 1200, output_tokens: 150, cache_read_input_tokens: 800, cache_creation_input_tokens: 0 });
     }
     articles++;
     const stone = articles === 1 || process.env.MOCK_STUBBORN === "1"; // stubborn: never drops the invention

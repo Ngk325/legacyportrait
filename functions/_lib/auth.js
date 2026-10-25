@@ -57,3 +57,20 @@ export async function canEdit(env, request, p) {
 
 // (once draft emails exist in WP6, add: "or use the private link we emailed you")
 export const LOCKED_MESSAGE = "This draft can only be changed on the device where it was started. Please open it there.";
+
+// ---------- private links (WP2/WP6) ----------
+// The "finish later" link carries an edit token derived from LINK_SECRET and the portrait id, so reminder emails can
+// rebuild the same link later without the token ever being stored. Without LINK_SECRET, a random token is used and
+// reminders can't include a link (they are skipped).
+async function hmacHex(secret, msg) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return Array.from(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg))), (x) => x.toString(16).padStart(2, "0")).join("");
+}
+export async function resumeToken(env, portraitId) {
+  if (!env.LINK_SECRET) return null;
+  return (await hmacHex(env.LINK_SECRET, `resume:${portraitId}`)).slice(0, 48);
+}
+export async function unsubscribeSig(env, customerId) {
+  if (!env.LINK_SECRET) return null;
+  return (await hmacHex(env.LINK_SECRET, `unsubscribe:${customerId}`)).slice(0, 32);
+}
