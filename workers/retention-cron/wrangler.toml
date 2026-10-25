@@ -1,0 +1,10 @@
+# Deploy (Nick): cd workers/retention-cron && npx wrangler deploy && npx wrangler secret put ADMIN_TOKEN
+name = "legacyportrait-retention"
+main = "index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+SITE_URL = "https://legacyportrait.pages.dev"
+
+[triggers]
+crons = ["17 7 * * *"]   # 07:17 UTC daily (about 3 a.m. in New York)

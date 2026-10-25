@@ -62,6 +62,9 @@ docs/HANDOFF.md                 current state, open items, next steps
 | `POST /api/portraits/:id/approve` | Customer confirms they read the text and have rights to the photos |
 | `GET /api/portraits/:id/render` | JSON the template draws from (live preview) |
 | `GET /api/portraits/:id/print?size=11x14&format=pdf\|png` | Print file. Paid orders or team (`ADMIN_TOKEN`) only. Cached in R2 |
+| `POST /api/admin/retention` | Team only. Dry run of the retention rules; `?apply=1` deletes, `&tests=1` also removes portraits tagged as tests. Called daily by `workers/retention-cron` |
+| `GET /api/products` | The offer from `config/products.js`, order-by dates and an arrival estimate |
+| `GET/POST /api/portraits/:id/order` | The customer's chosen format, saved as one pending order (priced on the server) |
 | `GET/POST /api/admin/config` | Team only. Read switches; `{"live_mode":"on"\|"off"}` flips the admin half of the LIVE_MODE gate |
 
 The draft id lets anyone with the link **read** a draft (keep links private; pages send `noindex`). **Changing** it (answers, photos, rewrites, approval) needs the edit token, an HttpOnly cookie set on the device that started the draft. Drafts made before migration 0002 have no token and stay open.
