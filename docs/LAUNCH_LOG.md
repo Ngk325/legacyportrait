@@ -4,6 +4,33 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 
 ---
 
+## 2026-10-25 · Go live (Nick: "Go live. Apply migrations 4 and 5. Move from preview to production. Merge.")
+
+### Done
+- Migrations **0004 and 0005 applied** to the real D1 (checked first: no duplicate customer emails; 0 customers, 0 orders).
+- **Shared Stripe account found:** "Stratfield Partners" also runs other products with their own webhooks. Fixed before going live (d5df6d1): our webhook acknowledges and ignores checkouts without our metadata and refunds/disputes for payments that aren't our orders (otherwise their events would 500 and Stripe would disable our endpoint). Checkouts now carry `app=legacyportrait`. Tested locally.
+- **Live Stripe webhook created** (`we_1UUVCR…`, https://legacyportrait.pages.dev/api/stripe/webhook, the five events we handle); its signing secret set as `STRIPE_WEBHOOK_SECRET_LIVE` in Production (not printed or committed).
+- **Production settings:** `ADMIN_TOKEN` (now the same as Preview; the old Production token no longer works), `LINK_SECRET`, `GELATO_WEBHOOK_SECRET`, `LIVE_MODE=true`, `SITE_URL`. The live-mode admin toggle is on in D1.
+  - Lesson: with `wrangler.toml` present, Pages replaces dashboard **plain-text** variables with `[vars]` on deploy (LIVE_MODE disappeared after the first deploy). LIVE_MODE and SITE_URL are therefore stored as encrypted variables, which survive.
+- **PR #3 merged**; production deployed from `main`.
+
+### Verified on https://legacyportrait.pages.dev
+| Check | Result |
+|---|---|
+| All pages | 200 |
+| `/api/admin/config` without / with token | 401 / `liveMode: true` (env and toggle both on), fulfillment `manual` |
+| Stripe webhook with a bad signature | 400 |
+| Gelato webhook on a wrong path | 404 |
+
+### Live, but cannot take a real order yet
+1. **No `STRIPE_SECRET_KEY_LIVE`** in Production: checkout says payments aren't set up. Stripe's API can't issue secret keys; Nick pastes `sk_live_…` (or a restricted key with Checkout Sessions write and Refunds write) into Production.
+2. **AI:** Anthropic has no credit, and the Gemini key's project needs billing. Drafts fail on the live site until one of them works.
+3. **No Turnstile in Production** (bot protection off; AI spend is exposed). This token can't manage Turnstile; Nick copies the Preview keys (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`) into Production.
+4. **Hourly reminders/retention Worker not deployed:** the token can't edit Workers (403). Nick runs `cd workers/retention-cron && npx wrangler deploy && npx wrangler secret put ADMIN_TOKEN`, or adds "Workers Scripts: Edit" to the token.
+5. Before real customers: business postal address and support email (`config/brand.js`), legal review of the pages still marked Draft, a sending domain plus Resend (`RESEND_API_KEY`, `MAIL_FROM`) or no emails go out, Gelato product IDs (fulfillment is manual until then), Workers paid plan for Browser Run.
+
+---
+
 ## 2026-10-25 · WP5 Admin and fulfillment; receipts; signed print links
 
 ### What changed
