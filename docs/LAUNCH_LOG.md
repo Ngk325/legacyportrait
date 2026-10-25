@@ -4,6 +4,18 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 
 ---
 
+## 2026-10-25 · First real AI draft (production)
+
+Nick set the Pages build command. I retried the `main` build: production (`legacyportrait.pages.dev`) now runs `main` with the secrets, deployment `1f3d2fdf`, build + deploy success.
+
+Real draft for test portrait `ecb3ea18…` (Elias Haddad answers):
+- **Anthropic: failed.** `HTTP 400 invalid_request_error: Your credit balance is too low to access the Anthropic API`. The key is accepted; the account needs credit (Plans & Billing in the Anthropic console). The model id `claude-sonnet-5-5` was not rejected, but it is only proven once a call succeeds.
+- **Gemini: worked as the silent backup.** `gemini-3.6-flash` model id confirmed. 4 paragraphs, 3 subheadlines, facts_used and gaps filled. ~16 s.
+- **Unsupported claims in the Gemini draft**, the reason WP2's fact validator matters: subheadline "a life crafted in cedar and **stone**" (no stone in the answers); "the sturdy **homes** and porches he left behind" (answers: porches, and his own house); Rose "managed the **family business**" (answers: "Rose kept the books"); "Before leaving Lebanon, he had promised" (the timing is inferred). The draft is also short of the 600-word target and says so in a gap chip that mentions "the 600-word target" to the customer. WP2 should reword that.
+- **The fallback is invisible to the customer, as designed.** The team needs an alert, though: WP1's error log records it (`draft-fallback`) once 0002 is applied and WP1 is deployed.
+
+---
+
 ## 2026-10-25 · WP1 Foundations
 
 ### Done
