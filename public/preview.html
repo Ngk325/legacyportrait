@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Your portrait</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div id="orderBanner" hidden></div>
+<header class="topbar"><a class="brand" href="/" data-brand="product">Legacy Portrait</a></header>
+<main class="wrap">
+  <div id="banner" class="banner" hidden></div>
+  <h1>Your portrait</h1>
+  <div class="actions">
+    <a class="btn primary" id="unlock" href="#">Unlock and choose a format</a>
+    <a class="btn" id="editText" href="#">Edit text</a>
+    <button type="button" class="btn" id="share">Share this preview</button>
+  </div>
+  <p class="muted">You can still edit after unlocking until you order a print.</p>
+  <div class="pv big" id="pv"><iframe id="pvFrame" title="Your portrait (preview)" tabindex="-1"></iframe></div>
+  <p class="muted small">This preview is marked PREVIEW. The print-ready file has no watermark.</p>
+</main>
+<footer id="siteFooter"></footer>
+<script src="/js/preview.js" type="module"></script>
+</body>
+</html>

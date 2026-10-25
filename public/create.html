@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
+<div id="orderBanner" hidden></div>
 <header class="topbar">
   <span class="brand">Legacy Portrait</span>
   <nav class="steps" id="steps" aria-label="Steps"></nav>
@@ -128,12 +129,13 @@
         <p class="muted">This portrait was drafted from your answers and will be printed under your byline, <b id="bylineName"></b>. Please read every word, including names, dates and places.</p>
         <label class="check"><input type="checkbox" id="approveBox"> <span>I have read the whole text and it is correct.</span></label>
         <div class="nav"><button class="btn" data-prev>Back to my answers</button><button class="btn primary" id="approve" disabled>Approve this text</button></div>
-        <p id="approved" class="approved" hidden>Approved. The next step, choosing your product and paying, comes in the next build phase.</p>
+        <p id="approved" class="approved" hidden>Approved. <a id="toPreview" href="#">See your portrait</a></p>
       </div>
       <aside class="preview"><h2>Live preview</h2><div class="pv" id="pv"><iframe id="pvFrame" title="Portrait preview" tabindex="-1"></iframe></div><p class="muted">The preview refreshes after you stop typing.</p></aside>
     </div>
   </section>
 </main>
+<footer id="siteFooter"></footer>
 <script src="/js/app.js" type="module"></script>
 </body>
 </html>

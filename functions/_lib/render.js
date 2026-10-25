@@ -7,7 +7,8 @@ export function todayLong() {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
 }
 
-export function buildRenderData(portrait) {
+// { watermark: true } adds the PREVIEW watermark (unpaid portraits on screen). Print files never pass it.
+export function buildRenderData(portrait, { watermark = false } = {}) {
   const a = portrait.answers || {};
   const e = portrait.edited || {};
   const folio = a.folio || {};
@@ -31,6 +32,6 @@ export function buildRenderData(portrait) {
     body: e.body_paragraphs || [],
     closing: "— 30 —",
     footer: "",
-    options: { halftone: true, bodyMinPt: 8.5, bodyMaxPt: 12, photoCol2Share: 0.5, photoBottomRatio: 0.6 },
+    options: { halftone: true, bodyMinPt: 8.5, bodyMaxPt: 12, photoCol2Share: 0.5, photoBottomRatio: 0.6, ...(watermark ? { watermark: "PREVIEW" } : {}) },
   };
 }

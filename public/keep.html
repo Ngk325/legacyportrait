@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Choose how to keep it</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div id="orderBanner" hidden></div>
+<header class="topbar"><a class="brand" href="/" data-brand="product">Legacy Portrait</a></header>
+<main class="wrap">
+  <div id="banner" class="banner" hidden></div>
+  <h1>Choose how to keep it</h1>
+  <p class="muted" id="late" hidden></p>
+
+  <fieldset class="cards" id="productCards"><legend class="sr-only">Format</legend></fieldset>
+
+  <div id="physicalOpts" hidden>
+    <fieldset class="pills" id="sizes"><legend>Size</legend></fieldset>
+    <p class="muted small">11×14 fits most mantels and shelves. 16×20 makes a statement on a wall.</p>
+    <p class="quality" id="photoWarn" hidden></p>
+    <div id="frameOpts" hidden>
+      <fieldset class="pills" id="colors"><legend>Frame color</legend></fieldset>
+      <fieldset class="pills" id="assembly"><legend>Assembly</legend></fieldset>
+    </div>
+    <p class="muted" id="shipLine"></p>
+  </div>
+
+  <label class="check"><input type="checkbox" id="gift"> <span>This is a gift</span></label>
+  <div id="giftOpts" hidden>
+    <p class="muted">We'll email you a printable gift card.</p>
+    <label class="field"><span>Recipient name (optional)</span><input id="giftRecipient" maxlength="80"></label>
+    <label class="field"><span>Gift message (optional, 200 characters)</span><textarea id="giftMessage" rows="2" maxlength="200"></textarea></label>
+  </div>
+
+  <div class="total"><span>Total</span><b id="total">–</b></div>
+  <p class="muted small">Price includes applicable tax. Free standard shipping in the USA.</p>
+  <div class="nav"><a class="btn" id="back" href="#">Back to my portrait</a><button type="button" class="btn primary" id="pay">Continue to secure payment</button></div>
+  <p class="muted small">Payments by Stripe. We never see your card.</p>
+  <p class="approved" id="saved" hidden></p>
+</main>
+<footer id="siteFooter"></footer>
+<script src="/js/keep.js" type="module"></script>
+</body>
+</html>

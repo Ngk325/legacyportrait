@@ -1,4 +1,5 @@
 // Legacy Portrait: create flow (photos, story, style, draft, approve).
+import { getConfig, initSite } from "./site.js";
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const STEPS = [["photos", "1 Photos"], ["story", "2 Story"], ["style", "3 Style"], ["draft", "4 Draft"]];
@@ -18,7 +19,8 @@ async function api(path, opts = {}) {
 // ---------- site config (brand, Turnstile) ----------
 let config = { brand: {}, turnstileSiteKey: "" };
 async function loadConfig() {
-  try { config = await api("/api/config"); } catch { /* defaults: no Turnstile, static brand text */ }
+  try { config = await getConfig(); initSite(); } catch { /* defaults: no Turnstile, static brand text */ }
+  config.brand = config.brand || {};
   if (config.brand.product) { $(".topbar .brand").textContent = config.brand.product; document.title = `Create a portrait · ${config.brand.product}`; }
 }
 
@@ -239,6 +241,7 @@ window.addEventListener("resize", fitPreview);
 async function enterDraft() {
   $("#bylineName").textContent = state.answers.byline || "";
   $("#approved").hidden = state.status !== "approved";
+  $("#toPreview").href = `/preview?id=${state.id}`;
   if (state.edited) { renderEditor(); refreshPreview(); return; }
   await writeDraft("");
 }
@@ -390,6 +393,8 @@ async function init() {
       await saveEditedNow();
       await api(`/api/portraits/${state.id}/approve`, { method: "POST", body: JSON.stringify({ confirm: true }) });
       state.status = "approved"; $("#approved").hidden = false; banner("");
+      $("#toPreview").href = `/preview?id=${state.id}`;
+      location.href = `/preview?id=${state.id}`; // the watermarked portrait and the way to unlock it
     } catch (e) { banner(e.message, "error"); }
   };
 

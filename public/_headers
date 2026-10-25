@@ -20,3 +20,9 @@
 
 /template/*
   X-Robots-Tag: noindex
+
+/preview
+  X-Robots-Tag: noindex
+
+/keep
+  X-Robots-Tag: noindex
