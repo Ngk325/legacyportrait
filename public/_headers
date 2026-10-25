@@ -1,0 +1,22 @@
+# Security headers for the static pages (Cloudflare Pages). API responses get theirs from functions/api/_middleware.js.
+# Third parties allowed: Cloudflare Turnstile only. Analytics (consent-gated) will be added in WP8.
+# The create page also needs 'unsafe-eval': the self-hosted HEIC converter (heic2any, emscripten asm.js) evaluates code.
+# Our own code never evals. Swapping to a WebAssembly HEIC decoder would let this become 'wasm-unsafe-eval'.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' https://challenges.cloudflare.com; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/create.html
+  X-Robots-Tag: noindex
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' https://challenges.cloudflare.com; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
+
+/create
+  X-Robots-Tag: noindex
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self' https://challenges.cloudflare.com; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
+
+/template/*
+  X-Robots-Tag: noindex

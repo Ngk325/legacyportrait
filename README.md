@@ -1,8 +1,8 @@
-# The Legacy Portrait
+# Legacy Portrait (The Legacy Press)
 
 A web app where a customer uploads 1–3 photos of an ancestor and answers a short questionnaire. An AI drafts a newspaper-style profile; the customer edits and approves it; it is sold as a **digital download** or a **framed print** fulfilled by **Gelato**. Target: the 2026 holiday season.
 
-> Status: **Phases 1–2 built and tested; Phase 3 started (print files only).** Not yet live to customers. See [`docs/HANDOFF.md`](docs/HANDOFF.md) for exactly where things stand and what to do next.
+> Status: working through the launch work packages in [`docs/MASTER_PROMPT_v4.md`](docs/MASTER_PROMPT_v4.md) (WP0 reality check done, WP1 foundations in review). Not yet live to customers. [`docs/LAUNCH_LOG.md`](docs/LAUNCH_LOG.md) is the running record of what was done, verified and blocked.
 
 ## What is built
 
@@ -10,8 +10,9 @@ A web app where a customer uploads 1–3 photos of an ancestor and answers a sho
 |---|---|---|
 | 1 | Newspaper template: one HTML/CSS layout, JSON-driven, halftone photo, auto-fit text, hyphenation | Done, approved by Yara |
 | 2 | Create flow: photos → story questions → style → AI draft → edit → approve | Done; tested with sample draft and mocked AI. No real AI key tested yet |
-| 3a | Print files (PDF/PNG) inside the site with Cloudflare Browser Run | Code written and pushed (branch `phase-3-sell`). **Untested against the real browser** |
-| 3b | Stripe test-mode checkout, manual Gelato order screen | Not started |
+| 3a | Print files (PDF/PNG) inside the site with Cloudflare Browser Run | Merged to `main`. Proven on a deployed preview (all sizes; 11x14 matches `render.py` pixel for pixel) |
+| WP1 | Config (brand, prices, holiday order-by dates), LIVE_MODE gate, edit token, Turnstile widget, self-hosted HEIC, security headers, error log, migration 0002 | In review (PR) |
+| WP2+ | AI interview and fact validator, preview-then-pay, Stripe, admin, Gelato, email, landing page | Not started |
 
 ## Stack
 
@@ -19,7 +20,8 @@ A web app where a customer uploads 1–3 photos of an ancestor and answers a sho
 - **D1** (SQLite) for portraits and orders; **R2** for photos and cached print files
 - **Browser Run** (headless Chromium via `@cloudflare/puppeteer`) for 300 DPI print files
 - **AI drafting**: Anthropic first, silent Gemini fallback, labelled sample draft if no key is set
-- **Planned**: Stripe Checkout (test mode first), Resend email, Turnstile, GA4/Meta Pixel
+- **Cloudflare Turnstile** on draft creation
+- **Planned**: Stripe Checkout (test mode first), Resend email, GA4/Meta Pixel
 - **Fulfilment**: Gelato (three framed-poster sizes, see below)
 
 ## Layout
@@ -28,8 +30,15 @@ A web app where a customer uploads 1–3 photos of an ancestor and answers a sho
 public/            static site: create.html, js/app.js, css/app.css, template/ (the newspaper layout)
 public/template/   index.html + render.js + style.css + fonts + vendor/hyphen.js
 functions/api/portraits/        API (see below)
-functions/_lib/                 draft.js (AI), render.js (template data), print.js (Browser Run), util.js
-migrations/0001_init.sql        D1 schema: customers, portraits, orders
+functions/_lib/                 draft.js (AI), render.js (template data), print.js (Browser Run), util.js,
+                                auth.js (team token, edit token), flags.js (LIVE_MODE, feature flags)
+functions/api/config.js         public config for the pages; functions/api/admin/ team-only routes
+config/                         brand.js, products.js (prices), holidays.js (order-by dates). Change values here only
+migrations/                     0001 schema; 0002 edit token, orders/payments columns, stripe_events, ai_calls,
+                                email_log, config, errors
+public/_headers                 security headers (CSP etc.) for static pages
+public/vendor/heic2any/         self-hosted iPhone photo converter
+tests/                          unit tests: npm test
 scripts/render.py               local print-file renderer (Playwright), the reference for print.js
 scripts/e2e.py                  browser test of the create flow (has a workspace-specific path; adjust)
 data/elias-haddad.json          sample portrait used to test the template
@@ -42,15 +51,18 @@ docs/HANDOFF.md                 current state, open items, next steps
 
 | Route | Purpose |
 |---|---|
-| `POST /api/portraits` | Create a draft (checks Turnstile if `TURNSTILE_SECRET` is set). Returns the unguessable id |
+| `GET /api/config` | Brand, Turnstile site key, next order-by dates, live/test |
+| `POST /api/portraits` | Create a draft (checks Turnstile if `TURNSTILE_SECRET` is set). Returns the unguessable id and sets the edit-token cookie |
 | `GET/PUT /api/portraits/:id` | Read / save answers and edited text. Editing after approval resets it to draft |
-| `POST/GET/DELETE /api/portraits/:id/photos/:n` | Upload (JPG/PNG/WebP, ≤8 MB, HEIC converted in browser), stream, remove. Slots 0–2 |
+| `POST /api/portraits/:id/claim` | Trade a private-link token for this device's edit cookie |
+| `POST/GET/DELETE /api/portraits/:id/photos/:n` | Upload (JPG/PNG/WebP checked by content, ≤8 MB, HEIC converted in browser), stream, remove. Slots 0–2 |
 | `POST /api/portraits/:id/draft` | Generate (or regenerate, max 5) the AI draft. Stores provider used (team-only field) |
 | `POST /api/portraits/:id/approve` | Customer confirms they read the text and have rights to the photos |
 | `GET /api/portraits/:id/render` | JSON the template draws from (live preview) |
 | `GET /api/portraits/:id/print?size=11x14&format=pdf\|png` | Print file. Paid orders or team (`ADMIN_TOKEN`) only. Cached in R2 |
+| `GET/POST /api/admin/config` | Team only. Read switches; `{"live_mode":"on"\|"off"}` flips the admin half of the LIVE_MODE gate |
 
-The draft id is the access key for a draft: keep links private, never index them (pages send `noindex`).
+The draft id lets anyone with the link **read** a draft (keep links private; pages send `noindex`). **Changing** it (answers, photos, rewrites, approval) needs the edit token, an HttpOnly cookie set on the device that started the draft. Drafts made before migration 0002 have no token and stay open.
 
 ## Print sizes and layout
 
@@ -62,6 +74,7 @@ Low-resolution photos are warned about in the create flow (e.g. "about 115 dpi" 
 
 ```bash
 npm install
+npm test                                # unit tests (prices, order-by dates, edit token, image sniffing)
 cp .dev.vars.example .dev.vars          # keys stay "placeholder" to get a labelled sample draft
 npx wrangler d1 migrations apply DB --local
 npx wrangler pages dev --port 8788      # http://localhost:8788/create.html
@@ -75,6 +88,10 @@ pip install playwright && python3 scripts/render.py data/elias-haddad.json out/e
 
 Browser Run cannot run fully offline: `/print` needs the deployed site (or `wrangler dev` with a downloadable Chrome).
 
+## Deploying
+
+The Pages project must have the build command `npm ci --omit=dev` (output directory `public`). Without it Pages never installs `@cloudflare/puppeteer` and every build fails in about a second. Run new migrations on the real database before deploying code that needs them: `npx wrangler d1 migrations apply DB --remote`. Secrets are per environment (Production and Preview are separate) and only apply to deployments made after they were set.
+
 ## Configuration
 
 Secrets (Cloudflare → Pages project → Settings → Variables and Secrets; locally `.dev.vars`). **Never paste keys into chat or commit them.**
@@ -84,7 +101,9 @@ Secrets (Cloudflare → Pages project → Settings → Variables and Secrets; lo
 | `ANTHROPIC_API_KEY` | Main AI writer |
 | `GEMINI_API_KEY` | Backup writer (use a billing-enabled key for real customers) |
 | `ADMIN_TOKEN` | Team access to print files before payment |
-| `TURNSTILE_SECRET` | Optional bot check (skipped if empty) |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET` | Bot check on draft creation (skipped if empty; test keys in `.dev.vars.example`) |
+| `LIVE_MODE` | `true` only when Nick says go live. Live also needs the admin toggle. Default: test mode |
+| `FULFILLMENT_MODE` | `manual` (default), `gelato_draft`, `gelato_live` |
 | `ANTHROPIC_MODEL`, `GEMINI_MODEL` | Plain vars in `wrangler.toml` (`claude-sonnet-5-5`, `gemini-3.6-flash`) |
 
 A key left as `placeholder` counts as "not set". With no keys the app writes a clearly labelled **sample** draft, so the whole flow can be tested for free.

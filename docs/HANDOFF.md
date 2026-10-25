@@ -1,5 +1,7 @@
 # Handoff: where the project stands
 
+> **Superseded in parts (2026-10-25, WP1).** Current state lives in `docs/LAUNCH_LOG.md` and the plan in `docs/MASTER_PROMPT_v4.md`. Corrections to this page: `phase-2-generate` and `phase-3-sell` are merged into `main` (work now happens on PR branches off `main`); the brand is **The Legacy Press** with the product **Legacy Portrait** (Kin Gazette dropped); Browser Run print files are **proven** on a deployed preview; Turnstile widget and self-hosted HEIC are done (WP1). The rest below is the original snapshot.
+
 Written 2026-10-25. Audience: Nick, Yara, or anyone (human or AI) picking this up cold.
 
 ## People and decisions

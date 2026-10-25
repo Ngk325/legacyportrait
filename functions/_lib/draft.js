@@ -206,7 +206,9 @@ export async function generateDraft(env, answers, { extraPhotoCount = 0, notes =
       console.warn("AI provider failed:", name, e.message);
     }
   }
-  throw new Error("The draft could not be generated right now. Please try again.");
+  const e = new Error("The draft could not be generated right now. Please try again.");
+  e.failures = failures; // for the team's error log
+  throw e;
 }
 
 /* ---------- sample generator (no AI) ----------

@@ -7,6 +7,12 @@ GEMINI_API_KEY=placeholder
 # Optional: override the models (defaults are set in wrangler.toml)
 # GEMINI_MODEL=gemini-3.6-flash
 # ANTHROPIC_MODEL=claude-sonnet-5-5
-# Optional: Cloudflare Turnstile secret. Left empty, the check is skipped.
-# TURNSTILE_SECRET=
+# Optional: Cloudflare Turnstile. Left empty, the widget is not shown and the check is skipped.
+# These are Cloudflare's always-pass TEST keys; use the real pair from the Turnstile dashboard in production.
+# TURNSTILE_SITE_KEY=1x00000000000000000000AA
+# TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+# Live mode needs this AND the admin toggle (POST /api/admin/config {"live_mode":"on"}). Only Nick sets it.
+# LIVE_MODE=false
+# manual | gelato_draft | gelato_live
+# FULFILLMENT_MODE=manual
 ADMIN_TOKEN=local-test-token
