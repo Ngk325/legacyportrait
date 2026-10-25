@@ -1,9 +1,81 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Legacy Portrait</title><link rel="stylesheet" href="/css/app.css"></head>
-<body><main class="wrap narrow">
-<h1 class="brand">Legacy Portrait</h1>
-<p class="lede">A newspaper-style profile of someone you love, written from your photos and memories.</p>
-<p><a class="btn primary" href="/create.html">Start a portrait</a></p>
-<p class="muted">Landing page placeholder. The real one (examples, pricing, order-by dates) comes in a later phase.</p>
-</main></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legacy Portrait · A front page for the person who made your family</title>
+  <meta name="description" content="Turn old family photos and a few memories into a keepsake newspaper portrait. Preview it free, then print and frame it as a gift.">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div id="orderBanner" hidden></div>
+<header class="topbar"><a class="brand" href="/" data-brand="product">Legacy Portrait</a><a class="btn small primary" href="/create">Start your portrait</a></header>
+<main class="landing">
+  <section class="hero wrap">
+    <h1>Their story, on the front page.</h1>
+    <p class="lede">Turn old family photos and a few memories into a keepsake newspaper portrait. Preview it free, then print and frame it as a gift.</p>
+    <p class="actions"><a class="btn primary" href="/create">Start your portrait</a><a class="btn" href="#examples">See examples</a></p>
+    <p class="muted small">Free to preview. No payment until you love it.</p>
+  </section>
+
+  <section class="wrap" aria-labelledby="how">
+    <h2 id="how">How it works</h2>
+    <ol class="steps4">
+      <li><b>Add photos</b><span>Upload one to three old photos. Phone shots are fine.</span></li>
+      <li><b>Tell us about them</b><span>Answer a few friendly questions. Skip anything you don't know.</span></li>
+      <li><b>Read and approve</b><span>We draft it. You edit every word.</span></li>
+      <li><b>Print or download</b><span>A framed print at your door, or a digital file today.</span></li>
+    </ol>
+    <ul class="trust">
+      <li>You approve every word</li><li>Your photos stay private</li><li>7-day refund or free reprint</li><li>Ships free in the USA</li>
+    </ul>
+  </section>
+
+  <section class="wrap" id="examples" aria-labelledby="ex">
+    <h2 id="ex">Example portraits</h2>
+    <p class="muted">The family and photo below are an example, not a customer.</p>
+    <figure class="example">
+      <div class="pv"><iframe src="/template/index.html?data=/examples/elias-haddad.json" title="Example portrait of a fictional carpenter, Elias Haddad" tabindex="-1" loading="lazy"></iframe></div>
+      <figcaption>Example: Elias Haddad, carpenter. 11 × 14 in.</figcaption>
+    </figure>
+  </section>
+
+  <section class="wrap" aria-labelledby="pricing">
+    <h2 id="pricing">Prices</h2>
+    <div class="cards">
+      <div class="card"><span class="card-title">Digital portrait</span><span class="card-price" data-price="digital">$19</span>
+        <ul><li>Print-ready PDF in all three sizes</li><li>An image to share</li><li>Ready the moment you order</li></ul>
+        <a class="btn" href="/create">Choose after your preview</a></div>
+      <div class="card selected"><span class="tag">Most popular</span><span class="card-title">Framed 11 × 14, ready to hang</span><span class="card-price" data-price="framed:11x14:assembled">$124</span>
+        <ul><li>Wood, dark wood or black frame</li><li>Includes the digital file</li><li>Free shipping in the USA</li></ul>
+        <a class="btn primary" href="/create">Choose after your preview</a></div>
+      <div class="card"><span class="card-title">Framed 16 × 20, ready to hang</span><span class="card-price" data-price="framed:16x20:assembled">$164</span>
+        <ul><li>A statement piece for a wall</li><li>Includes the digital file</li><li>Free shipping in the USA</li></ul>
+        <a class="btn" href="/create">Choose after your preview</a></div>
+    </div>
+    <p class="muted small">Unframed prints from <span data-price="print:8x10">$39</span>; assemble-yourself frames from <span data-price="framed:8x10">$79</span>. Prices include applicable tax.</p>
+  </section>
+
+  <section class="wrap" aria-labelledby="gift">
+    <h2 id="gift">Give it as a gift</h2>
+    <p>We'll send you a printable card to wrap with it. Order a framed portrait by <span data-orderby>the date at the top of this page</span>; digital portraits and gift cards are ready instantly.</p>
+  </section>
+
+  <section class="wrap faq" aria-labelledby="faq">
+    <h2 id="faq">Questions</h2>
+    <details><summary>Is this written by AI?</summary><p>We use AI to help draft the text from the facts you give us. You read and edit every word before anything is printed, and the portrait carries your byline.</p></details>
+    <details><summary>Will it make things up?</summary><p>It is instructed to use only what you tell us. Anything missing is left out, we check the draft against your answers, and you approve the final text.</p></details>
+    <details><summary>What if my photo is old or blurry?</summary><p>We warn you before you pay and suggest the best size. Many treasured photos print beautifully in black and white.</p></details>
+    <details><summary>How long until I get it?</summary><p>Digital is instant. Framed prints take up to about two weeks to produce and ship. Order by <span data-orderby>the date at the top of this page</span> for holiday delivery.</p></details>
+    <details><summary>Can I change it after I approve?</summary><p>Yes, until your print is in production.</p></details>
+    <details><summary>What if I'm not happy?</summary><p>You approve the final text before we print, so we can't refund a typo you approved. If anything arrives damaged or printed wrong, we reprint it free. Request a refund or reprint within 7 days of delivery. <a href="/refunds">Refunds and reprints</a></p></details>
+    <details><summary>Is my family's information private?</summary><p>Your photos and story are used only to make your portrait. See our <a href="/privacy">privacy policy</a> for how long we keep them.</p></details>
+    <details><summary>Do you ship outside the US?</summary><p>Not yet. We ship framed and printed portraits within the USA. Digital portraits work anywhere.</p></details>
+  </section>
+
+  <section class="wrap cta-end"><a class="btn primary" href="/create">Start your portrait</a><p class="muted small">Free to preview. No payment until you love it.</p></section>
+</main>
+<footer id="siteFooter"></footer>
+<script src="/js/page.js" type="module"></script>
+</body>
+</html>
