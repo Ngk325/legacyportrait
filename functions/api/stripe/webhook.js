@@ -31,8 +31,14 @@ export async function onRequestPost({ env, request }) {
   }
 }
 
+// The Stripe account is shared with other products, so the endpoint also receives their events.
+// Ours carry our metadata (checkout) or match an order we stored (charges, disputes); everything else is acknowledged and ignored.
+const isOurSession = (s) => !!(s && s.metadata && s.metadata.order_id && s.metadata.portrait_id);
+const orderByIntent = (env, pi) => (pi ? env.DB.prepare("SELECT * FROM orders WHERE stripe_payment_intent = ?").bind(typeof pi === "string" ? pi : pi.id).first() : null);
+
 async function handle(env, event, origin) {
   const o = event.data && event.data.object;
+  if (event.type.startsWith("checkout.session.") && !isOurSession(o)) return;
   switch (event.type) {
     case "checkout.session.completed":
       if (o.payment_status === "paid" || o.payment_status === "no_payment_required") await markPaid(env, o, event, origin);
@@ -43,8 +49,11 @@ async function handle(env, event, origin) {
       return logError(env, "payment-failed", "Delayed payment failed", { portraitId: o.metadata?.portrait_id || null, detail: { session: o.id } });
     case "charge.refunded":
       return markRefunded(env, o, origin);
-    case "charge.dispute.created":
-      return logError(env, "dispute", "A customer opened a dispute", { detail: { charge: o.charge || o.id, amount: o.amount, reason: o.reason } });
+    case "charge.dispute.created": {
+      const order = await orderByIntent(env, o.payment_intent);
+      if (!order) return;
+      return logError(env, "dispute", "A customer opened a dispute", { portraitId: order.portrait_id, detail: { order: order.id, charge: o.charge || o.id, amount: o.amount, reason: o.reason } });
+    }
     default:
       return; // not subscribed to anything else
   }
@@ -91,7 +100,7 @@ async function markRefunded(env, charge, origin) {
   const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
   if (!pi) return;
   const full = charge.refunded === true || charge.amount_refunded >= charge.amount;
-  const order = await env.DB.prepare("SELECT * FROM orders WHERE stripe_payment_intent = ?").bind(pi).first();
-  if (!order) throw new Error(`No order for refunded payment ${pi}`);
+  const order = await orderByIntent(env, pi);
+  if (!order) return; // another product's payment on the shared account
   await applyRefund(env, order, { full, amountCents: charge.amount_refunded, origin });
 }

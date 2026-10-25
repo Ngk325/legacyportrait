@@ -21,8 +21,8 @@ export async function createCheckout(env, origin, portrait, order) {
         product_data: { name: `Legacy Portrait: ${orderLabel(order)}`, description: `A portrait of ${name}.` + (physical ? " Includes the digital file." : "") },
       },
     }],
-    metadata: { order_id: order.id, portrait_id: portrait.id, product: order.product_type, size: order.size || "", gift: order.gift ? "1" : "0" },
-    payment_intent_data: { metadata: { order_id: order.id, portrait_id: portrait.id } },
+    metadata: { app: "legacyportrait", order_id: order.id, portrait_id: portrait.id, product: order.product_type, size: order.size || "", gift: order.gift ? "1" : "0" },
+    payment_intent_data: { metadata: { app: "legacyportrait", order_id: order.id, portrait_id: portrait.id } },
     allow_promotion_codes: "true",
     // Prices include tax (Nick's decision); Stripe Tax stays off unless STRIPE_TAX_ENABLED is set
     ...(String(env.STRIPE_TAX_ENABLED).toLowerCase() === "true" ? { automatic_tax: { enabled: "true" } } : {}),
