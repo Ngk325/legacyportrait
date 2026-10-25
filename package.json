@@ -1,0 +1,26 @@
+{
+  "name": "legacyportrait",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ngk325/legacyportrait.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ngk325/legacyportrait/issues"
+  },
+  "homepage": "https://github.com/ngk325/legacyportrait#readme",
+  "devDependencies": {
+    "wrangler": "^4.151.1"
+  },
+  "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0"
+  }
+}

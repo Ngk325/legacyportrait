@@ -1,0 +1,12 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+# While this is "placeholder" the app writes a clearly labelled sample draft instead of calling the API.
+ANTHROPIC_API_KEY=placeholder
+# Backup (and, until Anthropic is set up, main) writer. Get a key from Google AI Studio.
+# Use a key with billing enabled for real customers: free-tier keys may let Google use the data.
+GEMINI_API_KEY=placeholder
+# Optional: override the models (defaults are set in wrangler.toml)
+# GEMINI_MODEL=gemini-3.6-flash
+# ANTHROPIC_MODEL=claude-sonnet-5-5
+# Optional: Cloudflare Turnstile secret. Left empty, the check is skipped.
+# TURNSTILE_SECRET=
+ADMIN_TOKEN=local-test-token

@@ -1,0 +1,23 @@
+name = "legacyportrait"
+compatibility_date = "2025-09-01"
+pages_build_output_dir = "./public"
+compatibility_flags = ["nodejs_compat"]
+
+# Local dev uses emulated storage. The real database and photo bucket were created in Cloudflare on 2026-10-20.
+[[d1_databases]]
+binding = "DB"
+database_name = "legacyportrait"
+database_id = "b13253de-501c-40cc-9abd-4767cf2493b0"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "legacyportrait-photos"
+
+[vars]
+ANTHROPIC_MODEL = "claude-sonnet-5-5"
+GEMINI_MODEL = "gemini-3.6-flash"
+
+# Headless Chromium for the print files (Browser Run). "remote" lets local dev use a real browser.
+[browser]
+binding = "BROWSER"

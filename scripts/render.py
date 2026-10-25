@@ -41,7 +41,7 @@ def main():
 
     httpd = serve(ROOT)
     port = httpd.server_address[1]
-    url = f"http://127.0.0.1:{port}/template/index.html"
+    url = f"http://127.0.0.1:{port}/public/template/index.html"
 
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path="/opt/pw-browsers/chromium", args=["--no-sandbox"]) \
