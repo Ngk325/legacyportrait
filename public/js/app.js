@@ -15,15 +15,53 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error(data.error || `Something went wrong (${res.status}).`);
   return data;
 }
+// ---------- site config (brand, Turnstile) ----------
+let config = { brand: {}, turnstileSiteKey: "" };
+async function loadConfig() {
+  try { config = await api("/api/config"); } catch { /* defaults: no Turnstile, static brand text */ }
+  if (config.brand.product) { $(".topbar .brand").textContent = config.brand.product; document.title = `Create a portrait · ${config.brand.product}`; }
+}
+
+// Cloudflare Turnstile guards draft creation. Tokens are single use, so each new draft waits for a fresh one.
+let tsWidget = null, tsToken = null;
+const tsWaiters = [];
+function loadScript(src) {
+  return new Promise((resolve, reject) => { const s = document.createElement("script"); s.src = src; s.async = true; s.onload = resolve; s.onerror = () => reject(new Error("load failed: " + src)); document.head.appendChild(s); });
+}
+async function startTurnstile() {
+  if (!config.turnstileSiteKey || tsWidget !== null) return;
+  try { await loadScript("https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"); } catch { return; }
+  $("#turnstile").hidden = false;
+  tsWidget = window.turnstile.render("#turnstile", {
+    sitekey: config.turnstileSiteKey, size: "flexible",
+    callback: (t) => { const w = tsWaiters.shift(); if (w) w(t); else tsToken = t; },
+    "expired-callback": () => { tsToken = null; window.turnstile.reset(tsWidget); },
+    "error-callback": () => { banner("We couldn't confirm you're a person. Please reload the page and try again.", "error"); },
+  });
+}
+function turnstileToken() {
+  if (!config.turnstileSiteKey) return Promise.resolve("");
+  if (tsToken) { const t = tsToken; tsToken = null; return Promise.resolve(t); }
+  return new Promise((resolve) => tsWaiters.push(resolve));
+}
+
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 function setSaved(s) { $("#saveState").textContent = s; }
 
 // ---------- draft creation / resume ----------
-async function ensureDraft() {
-  if (state.id) return state.id;
+let creating = null; // one create request at a time (a photo drop and typing can both trigger it)
+function ensureDraft() {
+  if (state.id) return Promise.resolve(state.id);
+  if (!creating) creating = createDraft().finally(() => { creating = null; });
+  return creating;
+}
+async function createDraft() {
   const utm = {};
   new URLSearchParams(location.search).forEach((v, k) => { if (k.startsWith("utm_")) utm[k] = v; });
-  const { id } = await api("/api/portraits", { method: "POST", body: JSON.stringify({ utm }) });
+  const turnstile = await turnstileToken();
+  if (tsWidget !== null) window.turnstile.reset(tsWidget); // tokens are single use: start the next one now, in case this request fails
+  const { id } = await api("/api/portraits", { method: "POST", body: JSON.stringify({ utm, turnstile }) });
+  $("#turnstile").hidden = true;
   state.id = id;
   const u = new URL(location.href); u.searchParams.set("id", id); history.replaceState(null, "", u);
   return id;
@@ -31,7 +69,7 @@ async function ensureDraft() {
 
 async function loadDraft(id) {
   const d = await api(`/api/portraits/${id}`);
-  state.id = d.id; state.status = d.status;
+  state.id = d.id; state.status = d.status; state.canEdit = d.canEdit !== false;
   state.answers = { detail: {}, folio: {}, length: "standard", tone: "classic", firstPerson: true, printSize: "11x14", ...d.answers };
   state.answers.detail = d.answers.detail || {}; state.answers.folio = d.answers.folio || {};
   state.photos = d.photos; state.edited = d.edited; state.generated = d.generated; state.regenLeft = d.regenLeft; state.supportedLength = d.supportedLength;
@@ -114,14 +152,15 @@ async function toJpegBlob(file) {
   let blob = file;
   const isHeic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
   if (isHeic) {
-    const mod = await import("https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js").catch(() => null);
-    const heic2any = (mod && (mod.default || window.heic2any)) || window.heic2any;
+    setSaved("Converting your iPhone photo…");
+    if (!window.heic2any) await loadScript("/vendor/heic2any/heic2any.min.js").catch(() => null); // self-hosted, loaded only when needed
+    const heic2any = window.heic2any;
     if (!heic2any) throw new Error("We couldn't read that iPhone photo. Please export it as JPG and try again.");
     const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
     blob = Array.isArray(out) ? out[0] : out;
   }
   const bmp = await createImageBitmap(blob).catch(() => null);
-  if (!bmp) throw new Error("We couldn't open that image.");
+  if (!bmp) throw new Error("That file didn't work. Please try a JPG, PNG or iPhone photo under 8 MB.");
   const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
   const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
   const c = document.createElement("canvas"); c.width = w; c.height = h;
@@ -278,8 +317,16 @@ async function init() {
     } catch (e) { banner(e.message, "error"); }
   };
 
-  const id = new URLSearchParams(location.search).get("id");
-  if (id) { try { await loadDraft(id); fillInputs(); renderPhotos(); setSaved("Saved"); const h = location.hash.slice(1); go(STEPS.some((s) => s[0] === h) ? h : state.edited ? "draft" : "photos"); return; } catch (e) { banner("We couldn't find that draft. You can start a new one below."); } }
+  await loadConfig();
+  const qs = new URLSearchParams(location.search);
+  const id = qs.get("id");
+  if (id && qs.get("t")) {
+    // private link from another device: trade the token for this device's edit cookie, then drop it from the address bar
+    try { await api(`/api/portraits/${id}/claim`, { method: "POST", body: JSON.stringify({ token: qs.get("t") }) }); } catch (e) { banner(e.message, "error"); }
+    const u = new URL(location.href); u.searchParams.delete("t"); history.replaceState(null, "", u);
+  }
+  if (!id) startTurnstile();
+  if (id) { try { await loadDraft(id); fillInputs(); renderPhotos(); setSaved("Saved"); if (!state.canEdit) banner("This draft can only be changed on the device where it was started. You can read it here."); const h = location.hash.slice(1); go(STEPS.some((s) => s[0] === h) ? h : state.edited ? "draft" : "photos"); return; } catch (e) { banner("We couldn't find that draft. You can start a new one below."); } }
   fillInputs(); renderPhotos();
 }
 async function saveEditedNow() {

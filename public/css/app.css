@@ -55,3 +55,4 @@ input:focus, textarea:focus, select:focus, button:focus-visible, .drop:focus-vis
 .gaps { border-left:3px solid var(--warn); padding:6px 12px; margin:12px 0; background:rgba(127,127,127,.08); } .gaps ul { margin:4px 0 0; padding-left:18px; }
 .approved { border:1px solid var(--good); color:var(--good); padding:12px; border-radius:4px; margin-top:16px; }
 .sample { display:inline-block; font:700 12px sans-serif; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--warn); color:var(--warn); padding:2px 8px; border-radius:99px; margin-right:6px; }
+.turnstile { margin: 12px 0; min-height: 65px; }

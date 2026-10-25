@@ -42,20 +42,29 @@ export async function renderPrint(env, origin, data, size, format) {
 
 // Browser Run limits how often new browsers can be launched (a burst of 3 sizes got "429 Rate limit exceeded"
 // on the deployed preview). So: reuse an idle session if there is one, else launch one that stays alive for
-// a minute, and wait once and retry if launching is rate limited.
+// a minute. A session that was just released is not listed as free for a few seconds, and a launch may be
+// rate limited, so keep trying both for up to ~25 s before giving up.
 const KEEP_ALIVE_MS = 60000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function getBrowser(env) {
-  try {
-    const idle = (await puppeteer.sessions(env.BROWSER)).filter((s) => !s.connectionId);
-    for (const s of idle) {
-      try { return { browser: await puppeteer.connect(env.BROWSER, s.sessionId), how: "reused" }; } catch { /* taken or gone; try the next */ }
+  const deadline = Date.now() + 25000;
+  let lastError;
+  for (let round = 0; ; round++) {
+    let sessions = [];
+    try { sessions = await puppeteer.sessions(env.BROWSER); } catch { /* listing failed; still try to launch */ }
+    for (const s of sessions.filter((x) => !x.connectionId)) {
+      try { return { browser: await puppeteer.connect(env.BROWSER, s.sessionId), how: "reused" }; } catch { /* taken or gone */ }
     }
-  } catch { /* listing sessions failed; just launch */ }
-  try {
-    return { browser: await puppeteer.launch(env.BROWSER, { keep_alive: KEEP_ALIVE_MS }), how: "launched" };
-  } catch (e) {
-    if (!/429|rate limit/i.test(String(e.message || e))) throw e;
-    await new Promise((r) => setTimeout(r, 12000));
-    return { browser: await puppeteer.launch(env.BROWSER, { keep_alive: KEEP_ALIVE_MS }), how: "launched after wait" };
+    // a busy session will be free in a moment: wait for it rather than spend a launch
+    if (!sessions.length || round > 0) {
+      try {
+        return { browser: await puppeteer.launch(env.BROWSER, { keep_alive: KEEP_ALIVE_MS }), how: round ? "launched after wait" : "launched" };
+      } catch (e) {
+        if (!/429|rate limit/i.test(String(e.message || e))) throw e;
+        lastError = e;
+      }
+    }
+    if (Date.now() > deadline) throw lastError || new Error("No browser available");
+    await sleep(2000);
   }
 }

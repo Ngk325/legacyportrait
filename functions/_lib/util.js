@@ -47,3 +47,21 @@ export async function verifyTurnstile(env, request, token) {
   const j = await r.json().catch(() => ({}));
   return !!j.success;
 }
+
+// Record a failure for the team (errors table). Never throws: logging must not break the request.
+export async function logError(env, source, error, { portraitId = null, detail = null } = {}) {
+  const message = String((error && error.message) || error || "").slice(0, 500);
+  console.error(`[${source}]`, message, detail || "");
+  try {
+    await env.DB.prepare("INSERT INTO errors (source, message, detail, portrait_id) VALUES (?, ?, ?, ?)")
+      .bind(source, message, detail == null ? null : String(typeof detail === "string" ? detail : JSON.stringify(detail)).slice(0, 2000), portraitId).run();
+  } catch { /* errors table missing (migration 0002 not applied) */ }
+}
+
+// What the bytes actually are (the browser's claimed type can be wrong or faked).
+export function sniffImageType(b) {
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((x, i) => b[i] === x)) return "image/png";
+  if (b.length >= 12 && String.fromCharCode(...b.slice(0, 4)) === "RIFF" && String.fromCharCode(...b.slice(8, 12)) === "WEBP") return "image/webp";
+  return null;
+}

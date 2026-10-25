@@ -4,6 +4,50 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 
 ---
 
+## 2026-10-25 · WP1 Foundations
+
+### Done
+| Item | Where |
+|---|---|
+| Migration `0002_foundations.sql` (additive): `portraits.edit_token_hash`, `portraits.email`; `orders` status/email/options/shipping/state/gift/livemode/refund columns; tables `stripe_events`, `ai_calls`, `email_log`, `config`, `errors` | `migrations/` |
+| Config, the only place for these values: brand names, prices (D2), holiday calendar + `nextOrderBy` / `missedHoliday` (Appendix C, 23:59 New York cut-off) | `config/brand.js`, `config/products.js`, `config/holidays.js` |
+| `LIVE_MODE` gate: live only if env `LIVE_MODE=true` **and** admin toggle `live_mode=on`. Flags: `FULFILLMENT_MODE` (manual default), `STRIPE_TAX_ENABLED` (false) | `functions/_lib/flags.js`, `GET/POST /api/admin/config` (team only) |
+| Error log: `logError()` writes to `errors`; used by draft (all providers failed, or backup used) and print failures. Customer sees the copy-deck message, not internals | `functions/_lib/util.js` |
+| Edit token: create sets an HttpOnly cookie scoped to `/api/portraits/<id>`; PUT, photo upload/delete, draft, approve need it (or the team token). `POST /claim` turns a private-link token into a cookie on another device. Older drafts (no hash) stay open | `functions/_lib/auth.js` |
+| Turnstile widget on the photos step (explicit render, single-flight draft creation, token reset after use). Site key served by `/api/config` | `public/js/app.js`, `public/create.html` |
+| HEIC converter self-hosted (heic2any 0.0.4, MIT, loaded only when an iPhone photo is added) | `public/vendor/heic2any/` |
+| Server checks photo bytes (JPEG/PNG/WebP magic numbers), rejects 0 B and >8 MB with the copy-deck messages | `photos/[n].js` |
+| Security headers: CSP (self + Turnstile only), nosniff, Referrer-Policy, Permissions-Policy, `noindex` on create/template/API | `public/_headers`, `functions/api/_middleware.js` |
+| Unit tests (`npm test`, Node's built-in runner, no new dependencies): order-by dates incl. DST and cut-off second, prices, edit token, team token, cookie flags, image sniffing | `tests/` |
+| README and HANDOFF corrected (branches, brand, Browser Run status, deploy notes) | |
+
+### Verified (local `wrangler pages dev`, migrations 0001+0002 applied locally, Turnstile test keys)
+| Check | Result |
+|---|---|
+| `npm test` | 14/14 pass |
+| Create without Turnstile token / with token | 403 / 201 + `Set-Cookie: lp_edit=…; Path=/api/portraits/<id>; HttpOnly; SameSite=Lax` |
+| PUT, photo delete, draft, approve **without** the cookie (leaked link) | 403 each, with the "only on the device where it was started" message. GET still works, `canEdit: false` |
+| Same **with** the cookie | 200 / 201; approve → `approved` |
+| Claim with wrong token / right token on a fresh cookie jar, then PUT | 403 / 200, then 200 |
+| Photo: real JPEG / SVG renamed `.jpg` / 0 B / 8.1 MB / 4th slot | 201 / 415 / 400 / 413 / 400 (F-02 server side) |
+| `/api/admin/config` without token / with token; toggle on with env `LIVE_MODE` unset | 401 / 200; public `liveMode` stays `false` (both halves required) |
+| Headers on `/create.html` and API | CSP, nosniff, referrer policy, `x-robots-tag: noindex` present; `/` is indexable |
+| Chromium at 360×760 (mobile): load create page, Turnstile renders and passes, add an **iPhone HEIC** photo | Draft created, photo converted and stored (1000×1250), no horizontal scroll, **no console errors** |
+| Template page under the CSP | renders, `fit.ok`, no errors |
+
+**Found by that test:** heic2any is an emscripten asm.js build and needs `eval`; the strict CSP blocked it and HEIC uploads failed. Fixed by allowing `'unsafe-eval'` on `/create` only (our code never evals). A WebAssembly HEIC decoder would let this narrow to `'wasm-unsafe-eval'`; noted for later.
+
+### Not done / blocked
+1. **Migration 0002 is not applied to the real D1.** I was not allowed to run it from here (production change). It must be applied **before** this code is deployed anywhere, because the preview shares the production database and creating a draft writes `edit_token_hash`. Command: `npx wrangler d1 migrations apply DB --remote` (it will also record 0001, which is `IF NOT EXISTS` and safe). After that, I can deploy the preview and repeat the checks above on it.
+2. Turnstile real keys: create a Turnstile widget for the Pages domain (and later the real domain) and set `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET`. Until then the check is off.
+3. "Delete my data", retention, Cloudflare Access for `/admin`: later WPs as planned.
+4. Live UI check on a real iPhone (Safari) and Android: UAT 1.
+
+### Design note for Yara
+The only visible change is the Turnstile box under the rights checkbox on step 1 (shown only while starting a new draft). The brand text in the top bar now comes from config (still "Legacy Portrait").
+
+---
+
 ## 2026-10-25 · WP0 (part 2): why Pages builds fail, deployed Browser Run
 
 ### Why every Pages build since Phase 3a failed in ~1 s
@@ -25,7 +69,7 @@ The Pages project has an empty build command, so Pages never runs `npm install`,
 - Deployment bindings reported by the API: `BROWSER`, `DB` (legacyportrait), `PHOTOS` (legacyportrait-photos), `nodejs_compat`. **Pages honours `[browser]` from `wrangler.toml`.** No separate render Worker needed.
 
 ### Verified on the deployed preview
-Test portrait `cdbdce70…` created through the public API (sample draft, approved), then marked `paid` directly in D1 (tagged `utm.test = wp0-browser-run`) because the preview has no `ADMIN_TOKEN`.
+Test portraits `cdbdce70…` and `6db80d30…` created through the public API (sample draft, approved), then marked `paid` directly in D1 (tagged `utm.test = wp0-browser-run`) because the preview has no `ADMIN_TOKEN`.
 
 | Check | Result |
 |---|---|
@@ -38,7 +82,7 @@ Test portrait `cdbdce70…` created through the public API (sample draft, approv
 | Requests fired back to back | 2nd and 3rd got 502: `Unable to create new browser: code: 429: Rate limit exceeded`; fine after ~20 s |
 
 ### Change made because of the 429
-`_lib/print.js` now reuses an idle Browser Run session (`puppeteer.sessions` + `connect`), launches with `keep_alive: 60 s` and disconnects instead of closing, and waits 12 s and retries once if launching is rate limited. `x-browser: reused | launched | launched after wait` is on each freshly rendered response. **Only partly proven:** the first burst after the change still hit one 429 (it worked on a retry), and the run that would show whether reuse happens was cut off. Check the `x-browser` header on the next burst. The real cure is the Workers paid plan (higher launch limits), already approved.
+`_lib/print.js` now reuses an idle Browser Run session (`puppeteer.sessions` + `connect`), launches with `keep_alive: 60 s` and disconnects instead of closing, and waits 12 s and retries once if launching is rate limited. `x-browser: reused | launched | launched after wait` is on each freshly rendered response. First version still failed one request: a just-released session is not listed as free for a few seconds. Now it polls for a free session (and retries a rate-limited launch) for up to 25 s. **Verified on the deployed preview:** 4 uncached renders back to back (8x10, 11x14, 16x20 PNG + 11x14 PDF) all 200, `launched` then `reused` ×3, 2.5–6.2 s each. The Workers paid plan (higher limits) is still needed before launch.
 
 ### Real AI drafts: still not run
 - **Preview** environment has **no secrets at all** (no `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `ADMIN_TOKEN`). They are set on **Production** only. A preview draft therefore comes back in sample mode.
@@ -46,7 +90,7 @@ Test portrait `cdbdce70…` created through the public API (sample draft, approv
 - **To unblock (Nick):** either (a) add `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` and `ADMIN_TOKEN` to the **Preview** environment and redeploy this branch, or (b) fix the build command and let `main` redeploy Production. To test Gemini on its own, the Anthropic key must be missing for that environment (Gemini is only the backup), so (a) with only the Gemini key first, then both, is the cleanest.
 
 ### Test data left behind (production D1/R2)
-Portraits `cdbdce7016990761b4f43c7cbe4669c3` (status `paid`, test) and `ecb3ea18d6d104faf26e28bb0832a61e` (draft, test), their photo, and cached print files under `prints/v2/cdbdce70…/`. Safe to delete; the retention job (WP9) would remove them anyway.
+Portraits `cdbdce7016990761b4f43c7cbe4669c3` and `6db80d30cfef47f650aee3c283ed96c0` (status `paid`, test) and `ecb3ea18d6d104faf26e28bb0832a61e` (draft, test), their photo, and cached print files under `prints/v2/<those ids>/`. Safe to delete; the retention job (WP9) would remove them anyway.
 
 ### Risk list changes
 - Risk 1 (Browser Run on Pages): **closed**, works.

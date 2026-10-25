@@ -1,6 +1,8 @@
-import { json, err, getPortrait, LIMITS } from "../../../../_lib/util.js";
+import { json, err, getPortrait, LIMITS, sniffImageType } from "../../../../_lib/util.js";
+import { canEdit, LOCKED_MESSAGE } from "../../../../_lib/auth.js";
 
 const TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+const BAD_FILE = "That file didn't work. Please try a JPG, PNG or iPhone photo under 8 MB.";
 
 // POST   multipart "file" (+ width, height, name): add or replace photo n (0-2). The browser has already converted HEIC and resized.
 // GET    streams the photo (the draft id acts as the access key).
@@ -18,6 +20,7 @@ export async function onRequest({ request, env, params }) {
     return new Response(obj.body, { headers: { "content-type": obj.httpMetadata?.contentType || "image/jpeg", "cache-control": "private, max-age=300", "x-robots-tag": "noindex" } });
   }
 
+  if (!(await canEdit(env, request, p))) return err(403, LOCKED_MESSAGE);
   if (["paid", "delivered"].includes(p.status)) return err(409, "This portrait has already been ordered.");
 
   if (request.method === "POST") {
@@ -26,13 +29,16 @@ export async function onRequest({ request, env, params }) {
     try { form = await request.formData(); } catch { return err(400, "Invalid upload."); }
     const file = form.get("file");
     if (!file || typeof file === "string") return err(400, "No file received.");
-    if (!TYPES[file.type]) return err(415, "Please upload a JPG, PNG or WebP image (HEIC is converted in the browser before upload).");
-    if (file.size > LIMITS.photoBytes) return err(413, "That photo is too large. The limit is 8 MB after resizing.");
+    if (file.size > LIMITS.photoBytes) return err(413, "That photo is over 8 MB. Try a smaller version.");
+    if (!file.size) return err(400, BAD_FILE);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const type = sniffImageType(bytes);
+    if (!type || !TYPES[type]) return err(415, BAD_FILE);
     const width = Math.max(1, Math.min(20000, parseInt(form.get("width"), 10) || 0));
     const height = Math.max(1, Math.min(20000, parseInt(form.get("height"), 10) || 0));
-    await env.PHOTOS.put(key(n), file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { portrait: p.id, width: String(width), height: String(height) } });
+    await env.PHOTOS.put(key(n), bytes, { httpMetadata: { contentType: type }, customMetadata: { portrait: p.id, width: String(width), height: String(height) } });
     const photos = p.photos.slice();
-    photos[n] = { name: String(form.get("name") || "photo").slice(0, 80), width, height, bytes: file.size, type: file.type };
+    photos[n] = { name: String(form.get("name") || "photo").slice(0, 80), width, height, bytes: file.size, type };
     await env.DB.prepare("UPDATE portraits SET photos = ?, status = CASE WHEN status = 'approved' THEN 'draft' ELSE status END, approved_at = NULL, updated_at = datetime('now') WHERE id = ?").bind(JSON.stringify(photos), p.id).run();
     return json({ ok: true, index: n, width, height }, 201);
   }

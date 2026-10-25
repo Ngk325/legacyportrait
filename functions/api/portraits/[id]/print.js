@@ -1,4 +1,5 @@
-import { err, getPortrait } from "../../../_lib/util.js";
+import { err, getPortrait, logError } from "../../../_lib/util.js";
+import { isTeam } from "../../../_lib/auth.js";
 import { buildRenderData } from "../../../_lib/render.js";
 import { renderPrint, SIZES } from "../../../_lib/print.js";
 
@@ -16,10 +17,8 @@ export async function onRequestGet({ env, params, request }) {
   const p = await getPortrait(env, params.id);
   if (!p) return err(404, "We couldn't find that portrait.");
 
-  const supplied = request.headers.get("x-admin-token") || url.searchParams.get("token") || "";
-  const isTeam = !!env.ADMIN_TOKEN && supplied === env.ADMIN_TOKEN;
   const paid = ["paid", "delivered"].includes(p.status);
-  if (!paid && !isTeam) return err(403, "The print file is available after the order is paid.");
+  if (!paid && !isTeam(env, request)) return err(403, "The print file is available after the order is paid.");
   if (!p.edited || !p.edited.body_paragraphs?.length) return err(409, "This portrait has no approved text yet.");
 
   const stamp = (p.updated_at || "").replace(/\D/g, "");
@@ -35,6 +34,7 @@ export async function onRequestGet({ env, params, request }) {
     await env.PHOTOS.put(key, out.body, { httpMetadata: { contentType: out.type }, customMetadata: { fitOk: String(out.fit?.ok), bodyPt: String(out.fit?.bodyPt) } });
     return new Response(out.body, { headers: { ...headers(out.type), "x-fit-ok": String(out.fit?.ok), "x-body-pt": String(out.fit?.bodyPt), "x-browser": out.how } });
   } catch (e) {
+    await logError(env, "print", e, { portraitId: p.id, detail: { size, format } });
     return err(502, "We couldn't make the print file just now. Please try again in a minute.", { detail: String(e.message || e).slice(0, 200) });
   }
 }

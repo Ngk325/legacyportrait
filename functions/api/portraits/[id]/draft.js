@@ -1,4 +1,5 @@
-import { json, err, getPortrait, LIMITS } from "../../../_lib/util.js";
+import { json, err, getPortrait, LIMITS, logError } from "../../../_lib/util.js";
+import { canEdit, LOCKED_MESSAGE } from "../../../_lib/auth.js";
 import { generateDraft, hasRealKey, supportedLength } from "../../../_lib/draft.js";
 
 // POST /api/portraits/:id/draft  { notes?: string }
@@ -6,6 +7,7 @@ import { generateDraft, hasRealKey, supportedLength } from "../../../_lib/draft.
 export async function onRequestPost({ env, params, request }) {
   const p = await getPortrait(env, params.id);
   if (!p) return err(404, "We couldn't find that draft.");
+  if (!(await canEdit(env, request, p))) return err(403, LOCKED_MESSAGE);
   if (["paid", "delivered"].includes(p.status)) return err(409, "This portrait has already been ordered.");
   let body = {};
   try { body = await request.json(); } catch {}
@@ -22,8 +24,10 @@ export async function onRequestPost({ env, params, request }) {
   try {
     result = await generateDraft(env, a, { extraPhotoCount, notes, previous: isRewrite ? p.generated : null });
   } catch (e) {
-    return err(502, e.message || "The draft could not be generated.");
+    await logError(env, "draft", e, { portraitId: p.id, detail: e.failures || null });
+    return err(502, "We couldn't write your draft just now. Your answers are saved. Try again in a minute.");
   }
+  if (result.fallbackFrom && result.fallbackFrom.length) await logError(env, "draft-fallback", "AI provider failed; backup used", { portraitId: p.id, detail: result.fallbackFrom });
   const d = result.draft;
   const edited = { subheadline: d.subheadline_options[0] || "", body_paragraphs: d.body_paragraphs, captions: d.captions };
   // provider / fallback_from are for the team only; the customer screen never shows them
