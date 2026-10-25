@@ -1,5 +1,8 @@
 import { json, err, logError } from "../../_lib/util.js";
 import { verifyStripeSignature } from "../../_lib/stripe.js";
+import { sendEmail, receiptEmail } from "../../_lib/mail.js";
+import { orderLabel } from "../../_lib/orders.js";
+import { PRODUCTS } from "../../../config/products.js";
 
 // POST /api/stripe/webhook (register in the Stripe dashboard for: checkout.session.completed,
 // checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, charge.refunded, charge.dispute.created)
@@ -7,6 +10,7 @@ import { verifyStripeSignature } from "../../_lib/stripe.js";
 // - every event id is recorded in stripe_events first, so a repeated delivery does nothing
 // - if handling fails the record is removed and we answer 500, so Stripe retries
 export async function onRequestPost({ env, request }) {
+  const origin = env.SITE_URL || new URL(request.url).origin;
   const raw = await request.text();
   const ok = await verifyStripeSignature(raw, request.headers.get("stripe-signature"), [env.STRIPE_WEBHOOK_SECRET_TEST, env.STRIPE_WEBHOOK_SECRET_LIVE]);
   if (!ok) return err(400, "Bad signature.");
@@ -17,7 +21,7 @@ export async function onRequestPost({ env, request }) {
   if (!ins.meta || ins.meta.changes === 0) return json({ received: true, duplicate: true });
 
   try {
-    await handle(env, event);
+    await handle(env, event, origin);
     return json({ received: true });
   } catch (e) {
     await env.DB.prepare("DELETE FROM stripe_events WHERE id = ?").bind(event.id).run();
@@ -26,14 +30,14 @@ export async function onRequestPost({ env, request }) {
   }
 }
 
-async function handle(env, event) {
+async function handle(env, event, origin) {
   const o = event.data && event.data.object;
   switch (event.type) {
     case "checkout.session.completed":
-      if (o.payment_status === "paid" || o.payment_status === "no_payment_required") await markPaid(env, o, event);
+      if (o.payment_status === "paid" || o.payment_status === "no_payment_required") await markPaid(env, o, event, origin);
       return; // delayed payment methods: wait for async_payment_succeeded
     case "checkout.session.async_payment_succeeded":
-      return markPaid(env, o, event);
+      return markPaid(env, o, event, origin);
     case "checkout.session.async_payment_failed":
       return logError(env, "payment-failed", "Delayed payment failed", { portraitId: o.metadata?.portrait_id || null, detail: { session: o.id } });
     case "charge.refunded":
@@ -45,7 +49,7 @@ async function handle(env, event) {
   }
 }
 
-async function markPaid(env, s, event) {
+async function markPaid(env, s, event, origin) {
   const orderId = s.metadata?.order_id;
   const order = orderId ? await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(orderId).first() : null;
   if (!order) throw new Error(`No order for session ${s.id} (metadata order_id ${orderId})`);
@@ -62,7 +66,17 @@ async function markPaid(env, s, event) {
         Number.isInteger(s.amount_total) ? s.amount_total : order.amount, event.livemode ? 1 : 0, order.id),
     env.DB.prepare("UPDATE portraits SET status = 'paid', email = COALESCE(email, ?), updated_at = datetime('now') WHERE id = ?").bind(s.customer_details?.email || null, order.portrait_id),
   ]);
-  // receipt and download emails arrive with WP6 (Resend)
+  // receipt with the download link; a failed email must not fail the payment (the team sees it in email_log/errors)
+  const email = s.customer_details?.email;
+  if (email) {
+    try {
+      const portrait = await env.DB.prepare("SELECT answers FROM portraits WHERE id = ?").bind(order.portrait_id).first();
+      const name = JSON.parse(portrait?.answers || "{}").name;
+      const m = receiptEmail({ name, label: orderLabel(order), amountCents: Number.isInteger(s.amount_total) ? s.amount_total : order.amount, orderId: order.id,
+        downloadsUrl: `${origin}/thanks?id=${order.portrait_id}`, physical: !!PRODUCTS[order.product_type]?.physical, gift: !!order.gift });
+      await sendEmail(env, { to: email, ...m, template: "receipt", portraitId: order.portrait_id, orderId: order.id, kind: "transactional" });
+    } catch (e) { await logError(env, "email", e, { portraitId: order.portrait_id, detail: { order: order.id } }); }
+  }
 }
 
 async function markRefunded(env, charge) {

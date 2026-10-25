@@ -71,3 +71,16 @@ export function draftEmail(kind, { name, line, url, orderBy, unsubscribeUrl }) {
   }[kind];
   return { subject: T.subject, ...layout({ heading: T.heading, paras: T.paras, cta: T.cta, url, footer }) };
 }
+
+// Receipt after payment (transactional: no unsubscribe needed). Lists the downloads; physical orders get a
+// "we'll email tracking" line; gifts mention the printable card.
+export function receiptEmail({ name, label, amountCents, orderId, downloadsUrl, physical, gift }) {
+  const paras = [
+    `Thank you. Your order for the portrait of ${name || "your family member"} is confirmed: ${label}, $${(amountCents / 100).toFixed(2)} (tax included).`,
+    "Your print-ready files are ready to download now.",
+    ...(physical ? ["We'll check your portrait, send it to print, and email you tracking as soon as it ships."] : []),
+    ...(gift ? ["We'll also send you a printable gift card to give on the day."] : []),
+  ];
+  const footer = [`Order ${orderId}`, "Questions or a problem with your order? Just reply to this email.", BRAND.businessAddress ? `${BRAND.company}, ${BRAND.businessAddress}` : BRAND.company];
+  return { subject: `Your ${BRAND.product} order ${orderId}`, ...layout({ heading: "Thank you. Your portrait is on its way.", paras, cta: "Download your portrait", url: downloadsUrl, footer }) };
+}

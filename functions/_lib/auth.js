@@ -74,3 +74,14 @@ export async function unsubscribeSig(env, customerId) {
   if (!env.LINK_SECRET) return null;
   return (await hmacHex(env.LINK_SECRET, `unsubscribe:${customerId}`)).slice(0, 32);
 }
+
+// Signed, expiring print-file links (for Gelato, which fetches files by URL, and for download emails).
+export async function printSig(env, portraitId, size, format, exp) {
+  if (!env.LINK_SECRET) return null;
+  return (await hmacHex(env.LINK_SECRET, `print:${portraitId}:${size}:${format}:${exp}`)).slice(0, 40);
+}
+export async function signedPrintUrl(env, origin, portraitId, size, format, ttlSeconds = 7 * 86400) {
+  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const sig = await printSig(env, portraitId, size, format, exp);
+  return sig ? `${origin}/api/portraits/${portraitId}/print?size=${size}&format=${format}&exp=${exp}&sig=${sig}` : null;
+}
