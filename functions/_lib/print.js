@@ -15,7 +15,8 @@ export async function renderPrint(env, origin, data, size, format) {
   const browser = await puppeteer.launch(env.BROWSER);
   try {
     const page = await browser.newPage();
-    await page.setViewport({ width: DESIGN_W, height: designH, deviceScaleFactor: format === "png" ? scale : 1 });
+    // Full 300 DPI scale for PDFs too: the halftone canvas is drawn at devicePixelRatio (same as scripts/render.py).
+    await page.setViewport({ width: DESIGN_W, height: designH, deviceScaleFactor: scale });
     await page.evaluateOnNewDocument((d, w, h) => { window.__PORTRAIT__ = d; window.__PAGE__ = { w, h }; }, data, DESIGN_W, designH);
     await page.goto(new URL("/template/index.html", origin).toString(), { waitUntil: "load", timeout: 60000 });
     await page.waitForSelector("body[data-ready='1']", { timeout: 90000 });
