@@ -16,3 +16,9 @@ GEMINI_API_KEY=placeholder
 # manual | gelato_draft | gelato_live
 # FULFILLMENT_MODE=manual
 ADMIN_TOKEN=local-test-token
+# Guided interview (chat on the story step). Off until Yara approves the design; test with /create.html?interview=1
+# INTERVIEW_ENABLED=false
+# AI spend cap per portrait in US$ (default 0.40, see config/ai.js)
+# MAX_AI_COST_USD=0.40
+# Local tests only: point the Anthropic calls at the fake server (node scripts/mock-ai.mjs 8799)
+# ANTHROPIC_API_BASE=http://127.0.0.1:8799

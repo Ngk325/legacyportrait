@@ -109,6 +109,7 @@ function go(step) {
   $$("section.panel").forEach((s) => (s.hidden = s.dataset.step !== step));
   renderSteps(); banner(""); window.scrollTo({ top: 0 });
   if (step === "draft") enterDraft();
+  if (step === "story") startChat();
   const u = new URL(location.href); u.hash = step; history.replaceState(null, "", u);
 }
 function validateStory() {
@@ -257,6 +258,16 @@ function renderEditor() {
   if (g.mode === "sample") { const s = document.createElement("span"); s.className = "sample"; s.textContent = "Sample draft"; st.append(s, document.createTextNode("No AI writer is connected yet, so this draft just rearranges your own words. Once it's connected, it will be written properly.")); }
   else st.textContent = "Here is your draft. Everything below can be edited.";
 
+  // claims the fact check could not find in the customer's answers: ask them to look before approving
+  const checks = $("#checks"), un = g.unsupported || [];
+  checks.hidden = !un.length;
+  if (un.length) {
+    checks.innerHTML = "<b>Please check these before you approve</b><p class=\"muted\">We couldn't find them in your answers. Edit or remove them if they aren't right.</p>";
+    const ul = document.createElement("ul");
+    un.forEach((u) => { const li = document.createElement("li"); const q = document.createElement("q"); q.textContent = u.text; li.append(q, document.createTextNode(" " + (u.reason || ""))); ul.appendChild(li); });
+    checks.appendChild(ul);
+  }
+
   const gaps = $("#gaps"); gaps.hidden = !(g.gaps && g.gaps.length);
   if (!gaps.hidden) { gaps.innerHTML = "<b>To make it stronger</b>"; const ul = document.createElement("ul"); g.gaps.forEach((t) => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); }); gaps.appendChild(ul); }
 
@@ -295,6 +306,70 @@ function touched() {
   saveEdited();
 }
 
+// ---------- guided interview (chat that fills the story form) ----------
+const FIRST_QUESTION = "Who is this portrait about, and what's your relationship to them?";
+const chat = { on: false, loaded: false, busy: false, question: FIRST_QUESTION };
+function chatBubble(text, cls) { const li = document.createElement("li"); li.className = cls; li.textContent = text; $("#chatLog").appendChild(li); li.scrollIntoView({ block: "nearest" }); return li; }
+function renderChat(transcript, question) {
+  $("#chatLog").innerHTML = "";
+  for (const t of transcript) { chatBubble(t.q, "q"); chatBubble(t.a || "(skipped)", "a"); }
+  chat.question = question; chatBubble(question, "q");
+}
+async function startChat() {
+  if (!chat.on || chat.loaded) return;
+  chat.loaded = true;
+  $("#chat").hidden = false;
+  const name = (state.answers.name || "").split(/\s+/)[0];
+  $("#chatIntro").textContent = `Hi, I'm your ${config.brand.company || "family newspaper"} editor. I'll ask a few questions about ${name || "them"}. Answer in your own words, short is fine.`;
+  updateCardEmpty();
+  if (!state.id) { renderChat([], FIRST_QUESTION); return; }
+  try {
+    const r = await api(`/api/portraits/${state.id}/interview`);
+    if (!r.available) { $("#chat").hidden = true; return; } // no AI writer connected: the form alone
+    renderChat(r.transcript, r.question);
+  } catch { renderChat([], FIRST_QUESTION); }
+}
+function updateCardEmpty() {
+  const any = ["name", "born", "died", "origins", "work", "family", "story"].some((k) => state.answers[k]) || Object.values(state.answers.detail || {}).some(Boolean);
+  $("#cardEmpty").hidden = any;
+}
+async function sendChat(message) {
+  if (chat.busy) return;
+  chat.busy = true;
+  const box = $("#chatInput"); const buttons = $$(".chat-actions button");
+  buttons.forEach((b) => (b.disabled = true));
+  if (message) chatBubble(message, "a"); else chatBubble("(skipped)", "a");
+  const typing = chatBubble("…", "q typing");
+  try {
+    await saveAnswersNow(); // so edits typed into the form are part of the fact card the editor sees
+    const r = await api(`/api/portraits/${state.id}/interview`, { method: "POST", body: JSON.stringify({ message }) });
+    typing.remove(); box.value = "";
+    const keep = { printSize: state.answers.printSize };
+    state.answers = { detail: {}, folio: {}, ...r.answers, ...keep };
+    state.answers.detail = r.answers.detail || {}; state.answers.folio = r.answers.folio || {};
+    fillInputs(); updateCardEmpty(); setSaved("Saved");
+    for (const k of r.changed || []) {
+      const el = $(`[data-a="${k}"]`) || $(`[data-d="${k}"]`);
+      if (!el) continue;
+      if (el.closest("details")) el.closest("details").open = true;
+      el.classList.add("filled"); setTimeout(() => el.classList.remove("filled"), 2500);
+    }
+    chat.question = r.question; chatBubble(r.question, "q");
+    if (r.done) $("#chatEnough").classList.add("primary");
+  } catch (e) {
+    typing.remove(); banner(e.message, "error");
+  } finally {
+    chat.busy = false; buttons.forEach((b) => (b.disabled = false)); box.focus();
+  }
+}
+function bindChat() {
+  $("#chatSend").onclick = async () => { const m = $("#chatInput").value.trim(); if (!m) return; await ensureDraft(); sendChat(m); };
+  $("#chatInput").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("#chatSend").click(); } });
+  $("#chatSkip").onclick = async () => { await ensureDraft(); sendChat(""); };
+  $("#chatIdk").onclick = async () => { await ensureDraft(); sendChat("I don't know."); };
+  $("#chatEnough").onclick = () => go("style");
+}
+
 // ---------- init ----------
 async function init() {
   bindInputs(); renderSteps();
@@ -326,6 +401,8 @@ async function init() {
     try { await api(`/api/portraits/${id}/claim`, { method: "POST", body: JSON.stringify({ token: qs.get("t") }) }); } catch (e) { banner(e.message, "error"); }
     const u = new URL(location.href); u.searchParams.delete("t"); history.replaceState(null, "", u);
   }
+  chat.on = !!config.interview || qs.get("interview") === "1";
+  if (chat.on) bindChat();
   if (!id) startTurnstile();
   if (id) { try { await loadDraft(id); fillInputs(); renderPhotos(); setSaved("Saved"); if (!state.canEdit) banner("This draft can only be changed on the device where it was started. You can read it here."); const h = location.hash.slice(1); go(STEPS.some((s) => s[0] === h) ? h : state.edited ? "draft" : "photos"); return; } catch (e) { banner("We couldn't find that draft. You can start a new one below."); } }
   fillInputs(); renderPhotos();

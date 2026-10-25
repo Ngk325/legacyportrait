@@ -38,6 +38,19 @@
   <section class="panel" id="step-story" data-step="story" hidden>
     <h1>Tell us about them</h1>
     <p class="muted">Only the name and your relationship are required. Skip anything you don't know. We never add facts you didn't give us.</p>
+    <div id="chat" class="chat" hidden>
+      <p class="chat-intro" id="chatIntro"></p>
+      <ol id="chatLog" class="chat-log" aria-live="polite"></ol>
+      <label class="field"><span class="sr-only">Your answer</span><textarea id="chatInput" rows="3" maxlength="2400" placeholder="Answer in your own words. Short is fine."></textarea></label>
+      <div class="chat-actions">
+        <button type="button" class="btn primary" id="chatSend">Send</button>
+        <button type="button" class="btn" id="chatSkip">Skip</button>
+        <button type="button" class="btn" id="chatIdk">I don't know</button>
+        <button type="button" class="btn" id="chatEnough">That's enough, write my draft</button>
+      </div>
+      <h2 class="card-title">What we know so far (edit anything)</h2>
+      <p class="muted" id="cardEmpty">As you answer, the facts appear here.</p>
+    </div>
     <div class="grid2">
       <label class="field"><span>Their full name <em>required</em></span><input data-a="name" maxlength="120" autocomplete="off"></label>
       <label class="field"><span>You are their… <em>required</em></span><input data-a="relationship" maxlength="80" placeholder="granddaughter, great-grandson, son…"></label>
@@ -99,6 +112,7 @@
     <div id="draftStatus" class="muted"></div>
     <div class="draftgrid">
       <div id="editor">
+        <div id="checks" class="gaps checks" hidden aria-live="polite"></div>
         <div id="gaps" class="gaps" hidden></div>
         <h2>Subheadline</h2>
         <div id="subOptions" class="subopts"></div>

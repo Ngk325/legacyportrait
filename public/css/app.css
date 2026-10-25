@@ -47,6 +47,7 @@ input:focus, textarea:focus, select:focus, button:focus-visible, .drop:focus-vis
 .banner.error { border-color:var(--bad); color:var(--bad); }
 .draftgrid { display:grid; grid-template-columns:minmax(0,1fr) 420px; gap:32px; align-items:start; } @media (max-width:980px){ .draftgrid { grid-template-columns:1fr; } .preview { order:-1; } }
 .preview { position:sticky; top:12px; } .pv { width:100%; aspect-ratio:1056/1344; overflow:hidden; border:1px solid var(--line); background:#d9d9d9; position:relative; }
+@media (max-width:980px){ .preview { position:static; } } /* one column: a pinned preview would cover the editor */
 .pv iframe { width:1056px; height:1344px; border:0; transform-origin:0 0; position:absolute; left:0; top:0; }
 .subopts label { display:flex; gap:8px; margin:6px 0; cursor:pointer; align-items:flex-start; } .subopts input { margin-top:6px; }
 .subinput { margin-top:6px; }
@@ -56,3 +57,15 @@ input:focus, textarea:focus, select:focus, button:focus-visible, .drop:focus-vis
 .approved { border:1px solid var(--good); color:var(--good); padding:12px; border-radius:4px; margin-top:16px; }
 .sample { display:inline-block; font:700 12px sans-serif; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--warn); color:var(--warn); padding:2px 8px; border-radius:99px; margin-right:6px; }
 .turnstile { margin: 12px 0; min-height: 65px; }
+.checks { border-left-color: var(--bad); } .checks p { margin: 2px 0 4px; }
+/* guided interview (WP2) */
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.chat { border:1px solid var(--line); border-radius:8px; padding:12px; margin:12px 0 20px; }
+.chat-log { list-style:none; margin:0 0 8px; padding:0; max-height:50vh; overflow-y:auto; }
+.chat-log li { margin:8px 0; padding:8px 12px; border-radius:8px; max-width:90%; white-space:pre-wrap; }
+.chat-log .q { background:rgba(127,127,127,.12); }
+.chat-log .a { margin-left:auto; border:1px solid var(--line); }
+.chat-log .typing { color:var(--muted); font-style:italic; }
+.chat-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.card-title { font-size:20px; margin:20px 0 4px; }
+.filled { outline:2px solid var(--good); transition:outline-color 2s; }

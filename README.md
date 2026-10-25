@@ -19,7 +19,8 @@ A web app where a customer uploads 1–3 photos of an ancestor and answers a sho
 - **Cloudflare Pages + Pages Functions** (`functions/`) for the site and API
 - **D1** (SQLite) for portraits and orders; **R2** for photos and cached print files
 - **Browser Run** (headless Chromium via `@cloudflare/puppeteer`) for 300 DPI print files
-- **AI drafting**: Anthropic first, silent Gemini fallback, labelled sample draft if no key is set
+- **AI**: `functions/_lib/ai.js` calls Anthropic first (Haiku 5.5 for the interview and fact check, Sonnet 5.5 for the article; prompt caching, JSON schema output), Gemini as the silent backup. Every call is costed into `ai_calls`; a per-portrait cap (`MAX_AI_COST_USD`, default $0.40) stops further calls. Models and prices: `config/ai.js`
+- **Fact validator** (`functions/_lib/validate.js`): years, numbers and names in a draft must be in the customer's answers (code check), plus an AI fact check for invented details; failing drafts are rewritten up to twice, and anything left is shown to the customer to check before approving. Labelled sample draft only when no key is set, never in live mode
 - **Cloudflare Turnstile** on draft creation
 - **Planned**: Stripe Checkout (test mode first), Resend email, GA4/Meta Pixel
 - **Fulfilment**: Gelato (three framed-poster sizes, see below)
@@ -56,7 +57,8 @@ docs/HANDOFF.md                 current state, open items, next steps
 | `GET/PUT /api/portraits/:id` | Read / save answers and edited text. Editing after approval resets it to draft |
 | `POST /api/portraits/:id/claim` | Trade a private-link token for this device's edit cookie |
 | `POST/GET/DELETE /api/portraits/:id/photos/:n` | Upload (JPG/PNG/WebP checked by content, ≤8 MB, HEIC converted in browser), stream, remove. Slots 0–2 |
-| `POST /api/portraits/:id/draft` | Generate (or regenerate, max 5) the AI draft. Stores provider used (team-only field) |
+| `GET/POST /api/portraits/:id/interview` | Guided interview: transcript and current question / answer it (`{message}`, `""` = skip). Updates the story fields (the fact card) |
+| `POST /api/portraits/:id/draft` | Generate (or regenerate, max 5) the AI draft, fact-check it and rewrite if needed. Claims still unsupported come back in `generated.unsupported`; provider/model are team-only fields |
 | `POST /api/portraits/:id/approve` | Customer confirms they read the text and have rights to the photos |
 | `GET /api/portraits/:id/render` | JSON the template draws from (live preview) |
 | `GET /api/portraits/:id/print?size=11x14&format=pdf\|png` | Print file. Paid orders or team (`ADMIN_TOKEN`) only. Cached in R2 |

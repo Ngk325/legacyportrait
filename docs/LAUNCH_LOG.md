@@ -4,6 +4,62 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 
 ---
 
+## 2026-10-25 · WP2 AI interview and article upgrade
+
+### Verified against current docs (hard rule 4)
+| Item | Value | Source |
+|---|---|---|
+| Interview / fact check model | `claude-haiku-5-5`, $0.10 in / $0.50 out per M tokens (prompts up to 100K) | Anthropic claude-api reference, 2026-10 |
+| Article model | `claude-sonnet-5-5`, $2 / $10; cache reads $0.20 | same |
+| Prompt caching | `cache_control: {type: "ephemeral"}` on the system block; minimum 512 tokens on these models; writes 1.25×, reads 0.1× (Haiku) | same |
+| JSON output | `output_config.format = {type: "json_schema", schema}`; `temperature` now rejected (we don't send it); both models think by default, so effort is set explicitly (`low` interview/fact check, `medium` article) | same |
+| Gemini 3.6 Flash | $0.75 / $3.75 until 2026-12-31, then $1.50 / $7.50. We budget at the 2027 price | ai.google.dev/gemini-api/docs/pricing |
+
+### Done
+| Item | Where |
+|---|---|
+| One AI layer for all jobs: Anthropic first, Gemini backup, retries, usage-based cost per call in `ai_calls`, per-portrait cap (`MAX_AI_COST_USD`, default $0.40) checked before every call | `functions/_lib/ai.js`, `config/ai.js` |
+| Prompt caching on the article, interview and fact-check system prompts; JSON-schema output on Anthropic | `ai.js` |
+| Fact validator, layer 1 (code): every year, number (digits or words) and capitalised name/place in the draft must be in the answers | `functions/_lib/validate.js` |
+| Fact validator, layer 2 (Haiku): lists invented details (the "stone", "homes", "family business" kind). It can clear a layer-1 name only with an exact quote from the answers, which code verifies; numbers and years can't be cleared | `validate.js` |
+| Draft flow: write → check → if anything unsupported, rewrite with that feedback (up to 2 more times) → keep the best. Anything still unsupported is shown to the customer as **"Please check these before you approve"** | `draft.js`, `create.html` |
+| Gap chips never mention word counts or targets (prompt rule + filter) | `draft.js` |
+| Prompt-injection defence: customer text fenced in `<customer_answers>`-style tags it cannot close, invisible/direction-override characters stripped, lengths capped, explicit "data, never instructions" rules in every prompt | `functions/_lib/prompt.js` |
+| No sample draft in live mode: with no provider it fails with the calm retry message and an error log entry | `draft.js`, `draft` endpoint |
+| Guided interview: `GET/POST /api/portraits/:id/interview`. Haiku reads the fact card (the story form) and the latest answer, fills fields in the customer's words, asks one question at a time, grief line, max 14 turns, 2,400 characters per answer. Transcript in `portraits.interview` (migration 0003) | `functions/_lib/interview.js` |
+| Interview guard: a field the model fills is accepted only if every capitalised word (sentence starts included), year and number in it was already on the card or in what the customer just wrote; otherwise the customer's own words are stored instead | `interview.js` |
+| Chat UI on the story step with Send / Skip / I don't know / That's enough; the form below is titled "What we know so far (edit anything)" and updates live. **Off by default** (`INTERVIEW_ENABLED`), try it with `/create.html?interview=1` | `app.js`, `create.html` |
+| Pre-existing mobile bug fixed: the live preview was `position: sticky` in the one-column layout and covered the editor while scrolling | `app.css` |
+| Fixture: Wanis Ganim facts from Appendix E, with the cut-off age at death and great-grandchildren count deliberately left out | `data/fixtures/wanis-ganim.facts.json` |
+| Fake Anthropic server for local tests of these flows | `scripts/mock-ai.mjs` |
+
+### Verified
+| Check | Result |
+|---|---|
+| `npm test` | 26/26 pass (12 new: validator, injection fence, cost math, provider fallback, spend cap, retries, live mode) |
+| Validator on the real Oct 25 Gemini draft | 0 false alarms on names/places/numbers (its inventions are the semantic kind, left to layer 2) |
+| Validator on invented "1925 … brother Joseph … Boston … two shops … 30 years" | all 5 caught |
+| Wanis Ganim: clipping facts pass; "at the age of 95" and "12 great-grandchildren" | pass / both flagged (F-06 gold case) |
+| Fallback when Anthropic says "credit balance too low" (the real Oct 25 error) | Gemini answers; both calls logged, the failed one as not ok |
+| Local end to end with the fake server: interview 3 turns | fields filled; invented "ran for mayor of Boston" refused and the customer's words kept; grief line shown; 403 without edit cookie; 413 for 2,500 characters |
+| Local: draft with an invention → fact check → rewrite | `attempts: 2`, final draft clean; "600-word target" gap removed; 7 `ai_calls` rows with token counts and cost |
+| Local: spend cap ($0.39 already spent) | rewrite and interview both refused with 429 and the friendly message; `ai-budget` error logged |
+| Chromium 360×760: chat → form fills → draft → "Please check" box | works, no console errors, no horizontal scroll |
+
+### Not verified (and why)
+1. **Real model behaviour** (interview quality, fact-check recall, injection attempts, cost per portrait, F-04/F-05/F-06 with 8 seed families, F-08 with 50 portraits): the keys are Cloudflare secrets I can't read, Preview has none, and the Anthropic account has no credit. All the AI logic above was tested against the fake server and stubbed `fetch`, not the real models.
+2. **Prompt caching savings**: needs real Anthropic calls (`cache_read_input_tokens` > 0 on the second call).
+3. **Migration 0003 is not applied to the real D1.** Without it the interview endpoint fails to save (everything else works).
+
+### Known limits
+- The code check can't tell a name at the very start of a sentence from ordinary capitalisation, so it skips those; the AI fact check covers them. The interview guard checks sentence starts too.
+- Worst case one draft costs about $0.075 (3 article calls + 3 checks). Five rewrites plus a long interview can reach the $0.40 cap; typical drafts need 1–2 attempts. Raise `MAX_AI_COST_USD` if real data says so.
+
+### Design note for Yara
+New on screen: the chat box on step 2 (behind the switch), the "Please check these before you approve" box on step 4 (red left rule, same style as the existing "To make it stronger" box), and the mobile preview no longer floats over the editor.
+
+---
+
 ## 2026-10-25 · First real AI draft (production)
 
 Nick set the Pages build command. I retried the `main` build: production (`legacyportrait.pages.dev`) now runs `main` with the secrets, deployment `1f3d2fdf`, build + deploy success.

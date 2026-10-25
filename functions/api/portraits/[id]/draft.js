@@ -1,5 +1,7 @@
 import { json, err, getPortrait, LIMITS, logError } from "../../../_lib/util.js";
 import { canEdit, LOCKED_MESSAGE } from "../../../_lib/auth.js";
+import { BudgetError } from "../../../_lib/ai.js";
+import { isLiveMode } from "../../../_lib/flags.js";
 import { generateDraft, hasRealKey, supportedLength } from "../../../_lib/draft.js";
 
 // POST /api/portraits/:id/draft  { notes?: string }
@@ -22,8 +24,12 @@ export async function onRequestPost({ env, params, request }) {
   const extraPhotoCount = Math.max(0, Math.min(2, p.photos.length - 1));
   let result;
   try {
-    result = await generateDraft(env, a, { extraPhotoCount, notes, previous: isRewrite ? p.generated : null });
+    result = await generateDraft(env, a, { extraPhotoCount, notes, previous: isRewrite ? p.generated : null, portraitId: p.id, allowSample: !(await isLiveMode(env)) });
   } catch (e) {
+    if (e instanceof BudgetError) {
+      await logError(env, "ai-budget", e, { portraitId: p.id });
+      return err(429, "You've used all the AI help for this portrait. You can still edit the text by hand.");
+    }
     await logError(env, "draft", e, { portraitId: p.id, detail: e.failures || null });
     return err(502, "We couldn't write your draft just now. Your answers are saved. Try again in a minute.");
   }
@@ -31,7 +37,7 @@ export async function onRequestPost({ env, params, request }) {
   const d = result.draft;
   const edited = { subheadline: d.subheadline_options[0] || "", body_paragraphs: d.body_paragraphs, captions: d.captions };
   // provider / fallback_from are for the team only; the customer screen never shows them
-  const generated = { ...d, mode: result.mode, model: result.model, provider: result.provider, fallback_from: result.fallbackFrom, at: new Date().toISOString() };
+  const generated = { ...d, mode: result.mode, model: result.model, provider: result.provider, fallback_from: result.fallbackFrom, factcheck: result.factcheck || null, at: new Date().toISOString() };
   await env.DB.prepare("UPDATE portraits SET generated = ?, edited = ?, status = 'draft', approved_at = NULL, draft_count = draft_count + 1, regen_count = regen_count + ?, updated_at = datetime('now') WHERE id = ?")
     .bind(JSON.stringify(generated), JSON.stringify(edited), isRewrite ? 1 : 0, p.id).run();
   return json({ generated, edited, mode: result.mode, regenLeft: Math.max(0, LIMITS.regenerations - p.regen_count - (isRewrite ? 1 : 0)), supportedLength: supportedLength(a), aiConnected: hasRealKey(env) });
