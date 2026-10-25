@@ -39,8 +39,13 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 | Admin UI at 360 px | no horizontal scroll; customer name `<img src=x onerror=…>` shown as text, no tag created, no dialog (S-01) |
 | `npm test` | 46 pass (new: signed print links, SKU matrix, name split, address mapping, Gelato body) |
 
+### Set up on Cloudflare (Preview) after Nick pointed out the token can do it
+- `ADMIN_TOKEN`, `LINK_SECRET`, `GELATO_WEBHOOK_SECRET` generated and set as Preview secrets (values never printed or committed; the admin token and Gelato webhook URL were handed to Nick in a private file). Preview redeployed; `/admin` on the deployed preview: 401 without the token, config and orders load with it.
+- Stripe: the connected Stripe tool reaches the account **in live mode only** (test mode: "no account found"), so nothing was changed there (hard rule 1). Stripe's API cannot issue secret keys anyway; `sk_test_…` comes from the dashboard.
+- Retention/reminder Worker not deployed yet: it calls the production site, which gets these endpoints only when PR #3 is merged.
+
 ### Not done / needs Nick or Yara
-- **Apply migrations 0004 and 0005 to the real D1 before this branch's preview is used for orders** (the preview shares the production database). Needs Nick's go-ahead.
+- **Apply migrations 0004 and 0005 to the real D1 before this branch's preview is used for orders** (the preview shares the production database). Checked: no duplicate customer emails (0 customers, 0 orders), so both apply cleanly. The apply was stopped by the safety check pending Nick's explicit "apply migrations 0004 and 0005".
 - Gelato product UIDs (21) and the US standard `shipmentMethodUid`; `GELATO_API_KEY` and `GELATO_WEBHOOK_SECRET` in Pages secrets; register the webhook URL in Gelato. Yara's real test order (G-02).
 - `ADMIN_TOKEN` and `LINK_SECRET` in Preview. Cloudflare Access in front of `/admin` (Nick's and Yara's emails) is preferred over the token for production.
 - Real profit per order (Stripe fees, Gelato invoice) is not computed yet: needs the Gelato costs.
