@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
+<div id="orderBanner" hidden></div>
 <header class="topbar">
   <span class="brand">Legacy Portrait</span>
   <nav class="steps" id="steps" aria-label="Steps"></nav>
@@ -38,6 +39,31 @@
   <section class="panel" id="step-story" data-step="story" hidden>
     <h1>Tell us about them</h1>
     <p class="muted">Only the name and your relationship are required. Skip anything you don't know. We never add facts you didn't give us.</p>
+    <div id="chat" class="chat" hidden>
+      <p class="chat-intro" id="chatIntro"></p>
+      <ol id="chatLog" class="chat-log" aria-live="polite"></ol>
+      <label class="field"><span class="sr-only">Your answer</span><textarea id="chatInput" rows="3" maxlength="2400" placeholder="Answer in your own words. Short is fine."></textarea></label>
+      <div class="chat-actions">
+        <button type="button" class="btn primary" id="chatSend">Send</button>
+        <button type="button" class="btn" id="chatSkip">Skip</button>
+        <button type="button" class="btn" id="chatIdk">I don't know</button>
+        <button type="button" class="btn" id="chatEnough">That's enough, write my draft</button>
+      </div>
+      <p class="muted small" id="chatSaved">Your answers are saved as you go. You can stop at any time and come back to this page.</p>
+      <form id="saveBox" class="savebox" hidden>
+        <b>Want to finish later?</b>
+        <p class="muted small">We'll email you a private link so you can pick up where you left off, on any device.</p>
+        <label class="field"><span>Email</span><input type="email" id="saveEmail" autocomplete="email" required maxlength="254"></label>
+        <label class="check"><input type="checkbox" id="saveMarketing"> <span>Send me tips and holiday deadlines. Unsubscribe anytime.</span></label>
+        <div class="chat-actions"><button type="submit" class="btn">Email me my link</button><button type="button" class="btn" id="saveLater">Not now</button></div>
+      </form>
+      <p class="approved" id="saveDone" hidden></p>
+      <h2 class="card-title">What we know so far</h2>
+      <p class="muted" id="cardEmpty">As you answer, the facts appear here.</p>
+      <dl class="facts" id="factList"></dl>
+      <button type="button" class="btn small" id="toggleForm" aria-expanded="false" aria-controls="storyForm">Review or edit your answers</button>
+    </div>
+    <div id="storyForm">
     <div class="grid2">
       <label class="field"><span>Their full name <em>required</em></span><input data-a="name" maxlength="120" autocomplete="off"></label>
       <label class="field"><span>You are their… <em>required</em></span><input data-a="relationship" maxlength="80" placeholder="granddaughter, great-grandson, son…"></label>
@@ -65,6 +91,7 @@
       <label class="field"><span>Legacy: writings, recipes, what the family still carries</span><textarea data-d="legacy" rows="3"></textarea></label>
       <label class="field"><span>Paste existing material (obituary, letters, notes)</span><textarea data-a="paste" rows="6"></textarea></label>
     </details>
+    </div>
     <div class="nav"><button class="btn" data-prev>Back</button><button class="btn primary" data-next>Next: style</button></div>
   </section>
 
@@ -99,6 +126,7 @@
     <div id="draftStatus" class="muted"></div>
     <div class="draftgrid">
       <div id="editor">
+        <div id="checks" class="gaps checks" hidden aria-live="polite"></div>
         <div id="gaps" class="gaps" hidden></div>
         <h2>Subheadline</h2>
         <div id="subOptions" class="subopts"></div>
@@ -114,12 +142,13 @@
         <p class="muted">This portrait was drafted from your answers and will be printed under your byline, <b id="bylineName"></b>. Please read every word, including names, dates and places.</p>
         <label class="check"><input type="checkbox" id="approveBox"> <span>I have read the whole text and it is correct.</span></label>
         <div class="nav"><button class="btn" data-prev>Back to my answers</button><button class="btn primary" id="approve" disabled>Approve this text</button></div>
-        <p id="approved" class="approved" hidden>Approved. The next step, choosing your product and paying, comes in the next build phase.</p>
+        <p id="approved" class="approved" hidden>Approved. <a id="toPreview" href="#">See your portrait</a></p>
       </div>
       <aside class="preview"><h2>Live preview</h2><div class="pv" id="pv"><iframe id="pvFrame" title="Portrait preview" tabindex="-1"></iframe></div><p class="muted">The preview refreshes after you stop typing.</p></aside>
     </div>
   </section>
 </main>
+<footer id="siteFooter"></footer>
 <script src="/js/app.js" type="module"></script>
 </body>
 </html>

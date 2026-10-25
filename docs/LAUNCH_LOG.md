@@ -4,6 +4,181 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 
 ---
 
+## 2026-10-25 · WP5 Admin and fulfillment; receipts; signed print links
+
+### What changed
+- **`/admin`** (team token, kept in the browser tab only; `noindex`, `no-store`). Labels per master prompt 10.6.
+  - **Orders queue:** Needs review → Ready to print → Placed with Gelato → Shipped → Delivered/Refunded.
+  - **Order screen:** copyable address, gift message, short-story and low-resolution photo warnings, "Show the print file" (renders the PNG and reports whether the text fit), a three-item review checklist that gates printing, print-file downloads (PDF/PNG), Send to Gelato (draft), Mark placed + Gelato order id, Paste tracking (emails the customer), Mark delivered, Refund (Stripe refund, confirmation required), Resend email, team note, email log, errors.
+  - **Numbers:** funnel (started → draft → approved → email → format chosen → paid), revenue split live/test, refunds, AI cost total/by job/per portrait, emails by template and status, recent errors; **CSV export** per day for the Google Sheet (9.9). Portraits tagged as tests are left out.
+- **Fulfillment modes** (`functions/_lib/fulfillment.js`): `manual` (default), `gelato_draft` (builds the exact Gelato body, stores it on the order, sends it as a **draft** only if `GELATO_API_KEY` is set), `gelato_live` (real orders only when the LIVE_MODE gate is fully on; otherwise still a draft). `config/gelato-products.js` maps all 21 SKUs; `npm run check:gelato` fails loudly while any UID is missing, and the admin refuses to build an order for a missing one.
+- **Gelato webhook** `POST /api/gelato/<GELATO_WEBHOOK_SECRET>`: secret path (constant-time compare, ≥32 chars), must name one of our orders already sent to Gelato with a matching Gelato id, idempotent (`gelato_events`). Tracking → status Shipped + tracking email (once); `delivered` → Delivered.
+- **Receipt email** after payment, with the downloads link. **Refund email** once, whether the refund starts in admin or in the Stripe dashboard. A full refund closes the downloads.
+- **Signed, expiring print-file links** (HMAC with `LINK_SECRET`, bound to portrait, size, format and expiry): Gelato fetches files with a 7-day link.
+- Migration **0005_fulfillment** (review, payload, tracking, timestamps, `gelato_events`). Applied locally only.
+
+### Bugs found and fixed on the way
+- The thank-you page showed downloads only while the order was exactly "paid": once placed or shipped they would have vanished. Now any paid-or-later status shows them.
+- A late duplicate `checkout.session.completed` could have moved a placed/shipped order back to "paid". Now only a pending order can become paid.
+- Digital orders are now "delivered" at payment, so they leave the queue and the 90-day photo retention clock starts.
+
+### Verified (local, fake Stripe/Resend/Gelato server, `FULFILLMENT_MODE=gelato_draft`)
+| Check | Result |
+|---|---|
+| Admin without token | 401; wrong token in the page → back to sign-in with a message |
+| Paid webhook → receipt email; same event again | sent once; `duplicate: true` |
+| Send to Gelato / Mark placed before review | refused: "Pass the review first." |
+| Review with photo box unticked / all ticked | stays Needs review / Ready to print |
+| Send to Gelato with no productUid | 400 naming the SKU (G-01 refuses loudly) |
+| Send to Gelato with a test UID | draft body as in INTEGRATIONS.md: `orderType: "draft"`, address split ("Maria Ann" / "Haddad", line 2 kept), signed 7-day PDF link; order stays Ready to print |
+| Signed link: tampered / other size | 403 / 403; the genuine link passes the check (local Chromium can't run as root, so the render itself wasn't repeated here; rendering is proven on the deployed preview) |
+| Paste tracking before placed | refused |
+| Gelato webhook: wrong secret / unknown order / other Gelato id / real tracking event / repeat | 404 / ignored / ignored / Shipped + email / duplicate (G-03) |
+| `delivered` status event | order and portrait Delivered |
+| Refund without confirmation / with | refused / Stripe refund called with idempotency key, Refunded, one refund email; the later `charge.refunded` webhook sends no second email; downloads then 403 (P-05) |
+| Admin UI at 360 px | no horizontal scroll; customer name `<img src=x onerror=…>` shown as text, no tag created, no dialog (S-01) |
+| `npm test` | 46 pass (new: signed print links, SKU matrix, name split, address mapping, Gelato body) |
+
+### Set up on Cloudflare (Preview) after Nick pointed out the token can do it
+- `ADMIN_TOKEN`, `LINK_SECRET`, `GELATO_WEBHOOK_SECRET` generated and set as Preview secrets (values never printed or committed; the admin token and Gelato webhook URL were handed to Nick in a private file). Preview redeployed; `/admin` on the deployed preview: 401 without the token, config and orders load with it.
+- Stripe: the connected Stripe tool reaches the account **in live mode only** (test mode: "no account found"), so nothing was changed there (hard rule 1). Stripe's API cannot issue secret keys anyway; `sk_test_…` comes from the dashboard.
+- Retention/reminder Worker not deployed yet: it calls the production site, which gets these endpoints only when PR #3 is merged.
+
+### Not done / needs Nick or Yara
+- **Apply migrations 0004 and 0005 to the real D1 before this branch's preview is used for orders** (the preview shares the production database). Checked: no duplicate customer emails (0 customers, 0 orders), so both apply cleanly. The apply was stopped by the safety check pending Nick's explicit "apply migrations 0004 and 0005".
+- Gelato product UIDs (21) and the US standard `shipmentMethodUid`; `GELATO_API_KEY` and `GELATO_WEBHOOK_SECRET` in Pages secrets; register the webhook URL in Gelato. Yara's real test order (G-02).
+- `ADMIN_TOKEN` and `LINK_SECRET` in Preview. Cloudflare Access in front of `/admin` (Nick's and Yara's emails) is preferred over the token for production.
+- Real profit per order (Stripe fees, Gelato invoice) is not computed yet: needs the Gelato costs.
+- The admin page is internal and reuses the site styles; no customer-facing design changed.
+
+---
+
+## 2026-10-25 · Story step is the chat; answers saved; follow-up emails (Nick's request)
+
+### What changed
+- **The chat asks the story questions; the form is no longer shown under it.** The form is folded away behind "Review or edit your answers" (same data), and a short read-only "What we know so far" list fills in as the customer answers.
+- **The chat always works.** With an AI provider it is the AI editor; without one (today: both providers blocked on billing), or if an AI call fails, a **scripted interview** asks every story-form question in turn (name, relationship, pronoun, born, died, origins, work, family, story, three words, legacy, byline) and stores each answer straight into its field. Optional skips aren't asked again; required ones (name, relationship, byline) are asked again at the end. The AI now tags each question with the field it is about, so if the AI drops out mid-conversation the next answer still lands in the right field. Nothing typed is ever lost (an answer to an untagged question is kept in the pasted-material box).
+- **Saved and resumable.** Every answer is saved to D1 the moment it is sent; the conversation is stored with the waiting question, so reopening the draft (or the emailed link on another device) continues exactly there.
+- **"Want to finish later?"** After two answers the chat offers to email a private link (email, unticked "tips and holiday deadlines" box). The link's token is derived from `LINK_SECRET`, so reminder emails can rebuild it without storing it. Without email set up, the page shows the private link instead.
+- **Follow-up emails** (`functions/_lib/followups.js`, master prompt 5): drafts with an email get reminders after 24 h, 72 h and 7 days without activity; approved-but-unpaid portraits after 30 min and 24 h. Each once, in order, activity resets the clock, stopped by payment or unsubscribe, never for drafts older than 30 days. Signed unsubscribe link and one-click header in every reminder. **Reminders refuse to send until the business postal address is in `config/brand.js`** (CAN-SPAM). Sent by Resend once configured; until then nothing goes out.
+- `workers/retention-cron` now runs hourly: follow-ups every hour, retention at 07:17 UTC.
+- Migration `0004_followups.sql`: `customers.unsubscribed_at`, unique email index. **Not yet applied to the real D1.**
+
+### Verified (local, no AI keys, fake Resend/Stripe server)
+| Check | Result |
+|---|---|
+| `npm test` | 41/41 (scheduler timing and order, scripted interview incl. skips and re-asking required fields, no-loss rule, question wording, email templates and escaping) |
+| Chromium 360 px, chat-first | form hidden on the story step; first question asked; after 2 answers the save box appears; email sent with the private link; facts list fills; no console errors; no horizontal scroll |
+| Second device opens the emailed link | edit access granted, chat resumes at the exact waiting question (9 bubbles), new answer saved; "Review or edit your answers" opens the form with the saved values |
+| Follow-ups: draft idle 25 h | dry run lists `remind-24h`; with no business address: skipped (not sent); with a (temporary, test-only) address: sent with List-Unsubscribe headers; re-run sends nothing more |
+| Unsubscribe | tampered link 400; real link 200 "You're unsubscribed"; one-click POST 200; afterwards no reminders even at 8 days idle |
+| AI then AI down | AI turn fills name/relationship/pronoun and asks about birth (tagged `born`); with the AI stopped, the answer lands in `born` and the scripted questions continue |
+| Team endpoints | 401 without the token |
+
+### Known limits
+- In scripted mode an answer is stored under the question it answers (like a form): if someone answers a different question, it goes in the asked field; they can fix it under "Review or edit your answers". The AI editor files wandering answers better.
+- Reminder emails need: Resend + a verified sending domain (after the domain is bought), `LINK_SECRET`, `MAIL_FROM`, `SITE_URL`, the business address, migration 0004 on the real D1, and the cron Worker deployed.
+
+---
+
+## 2026-10-25 · WP3, WP4, WP7, WP9 (built while AI billing is paused)
+
+### WP3 Preview-then-pay
+- The template draws a **PREVIEW** watermark layer when the render data asks for it; `/api/portraits/:id/render` asks until the portrait is paid. Print files never carry it (`buildRenderData(p)` without the option).
+- Approving the text now opens **`/preview`**: the watermarked portrait, *Unlock and choose a format*, *Edit text*, *Share this preview* (share sheet or copy link).
+- **`/keep`** (product page): digital / print only / framed; size, frame color, assembly; per-size photo resolution warning; arrival estimate; after-the-cut-off wording; gift toggle with recipient and message; totals from `config/products.js` via `/api/products`. "Price includes applicable tax."
+- `POST /api/portraits/:id/order` saves **one pending order per portrait, priced on the server** (an `amount` sent by the browser is ignored).
+- Shared `public/js/site.js`: the **order-by banner** (from `config/holidays.js`) and the footer on every page.
+- Verified in Chromium at 360 px: banner text, watermark layer present, prices for every combination ($124 hero, $49, $69, $149 …), photo warning at 16×20, gift saved, server row correct, no console errors, no horizontal scroll.
+
+### WP4 Stripe (test mode), built and tested against a fake Stripe
+- `functions/_lib/stripe.js`: form-encoded API calls over fetch, **webhook signature check** per docs.stripe.com (v1 only, constant-time, 5-minute tolerance, test and live endpoint secrets). Test and live keys are separate secrets and the **LIVE_MODE gate picks one; a live key in the test slot (or the reverse) is refused**.
+- `functions/_lib/checkout.js`: Checkout Session with inline price, US-only shipping and phone for physical items, promo codes allowed, Stripe Tax off, metadata, idempotency key (a double click can't create two sessions).
+- `/api/stripe/webhook`: each event recorded in `stripe_events` first (duplicates do nothing); paid → order `paid` with email, shipping name/address/state, payment intent; portrait `paid` (edits locked, print files unlocked); full refund → order `refunded`, portrait back to `approved` (downloads closed); dispute and failed delayed payment → error log; failures remove the event record and return 500 so Stripe retries.
+- `/thanks`: waits for the webhook, then shows PDF 11×14 / 8×10 / 16×20 and the share image; print and gift notes. Cancel returns to `/keep` with "No charge was made. Your portrait is saved."
+- Verified: 6 new unit tests (signatures valid/tampered/stale/v0-only/rolled secret, form encoding, key/mode pairing, labels); local end to end with `scripts/mock-stripe.mjs`: session request exactly as intended ($124 computed on the server, US only, no tax, test key); bad signature 400; paid; duplicate ignored; edit after paid 409; unknown order 500; refund → refunded, portrait approved, print 403; browser: cancel message, redirect to `/thanks`, downloads appear after the webhook.
+- **Not verified:** a real Stripe test-mode payment (no Stripe keys yet), Apple/Google Pay, the shipping-details field name on the real API version (code reads both). See `docs/INTEGRATIONS.md`.
+- Not built yet (later WPs): receipt/download emails (WP6), admin refund button (WP5), signed expiring download links (download access is by private portrait link + paid status today).
+
+### WP7 Landing, legal, FAQ
+- Landing page from the copy deck: hero, how it works, trust strip, a clearly labelled **Example** portrait (the fictional Elias Haddad sample, with an EXAMPLE watermark), prices and order-by date filled from the same config as checkout, gift section, FAQ, end CTA.
+- `/privacy`, `/terms`, `/refunds`, `/shipping` marked **Draft** on the page; `/contact`. Generated by `scripts/build-pages.py`; footer links on every page. Open items are marked in brackets: provider data terms [VERIFY], governing-law state, APO/FPO, business address.
+- Verified at 360 and 1280 px: prices $19/$124/$164/$39/$79 rendered from config, all pages 200 with footer links, no console errors, no horizontal scroll.
+
+### WP9 (part) Retention
+- `functions/_lib/retention.js` + `POST /api/admin/retention` (team only; dry run unless `?apply=1`; `&tests=1` removes tagged test portraits): unpaid drafts deleted 30 days after the last change (portrait, photos, print files, pending orders); delivered orders' original photos after 90 days; AI cost rows kept but unlinked.
+- `workers/retention-cron/`: a tiny Worker with a daily cron that calls it. **Not deployed** (needs Nick: new Worker + its `ADMIN_TOKEN` secret).
+- Verified locally: dry run lists the right ids; apply deletes the stale draft and its photo and the test portrait, keeps the fresh draft, unlinks the cost row; 401 without the team token.
+- Cleaned real D1/R2: removed 7 WP0/WP1 test portraits, their orders and 15 R2 files. Kept the 8 `wp2-seed-*` portraits for the real AI test run, and 2 untagged portraits that are not mine.
+
+---
+
+## 2026-10-25 · WP2 AI interview and article upgrade
+
+### Verified against current docs (hard rule 4)
+| Item | Value | Source |
+|---|---|---|
+| Interview / fact check model | `claude-haiku-5-5`, $0.10 in / $0.50 out per M tokens (prompts up to 100K) | Anthropic claude-api reference, 2026-10 |
+| Article model | `claude-sonnet-5-5`, $2 / $10; cache reads $0.20 | same |
+| Prompt caching | `cache_control: {type: "ephemeral"}` on the system block; minimum 512 tokens on these models; writes 1.25×, reads 0.1× (Haiku) | same |
+| JSON output | `output_config.format = {type: "json_schema", schema}`; `temperature` now rejected (we don't send it); both models think by default, so effort is set explicitly (`low` interview/fact check, `medium` article) | same |
+| Gemini 3.6 Flash | $0.75 / $3.75 until 2026-12-31, then $1.50 / $7.50. We budget at the 2027 price | ai.google.dev/gemini-api/docs/pricing |
+
+### Done
+| Item | Where |
+|---|---|
+| One AI layer for all jobs: Anthropic first, Gemini backup, retries, usage-based cost per call in `ai_calls`, per-portrait cap (`MAX_AI_COST_USD`, default $0.40) checked before every call | `functions/_lib/ai.js`, `config/ai.js` |
+| Prompt caching on the article, interview and fact-check system prompts; JSON-schema output on Anthropic | `ai.js` |
+| Fact validator, layer 1 (code): every year, number (digits or words) and capitalised name/place in the draft must be in the answers | `functions/_lib/validate.js` |
+| Fact validator, layer 2 (Haiku): lists invented details (the "stone", "homes", "family business" kind). It can clear a layer-1 name only with an exact quote from the answers, which code verifies; numbers and years can't be cleared | `validate.js` |
+| Draft flow: write → check → if anything unsupported, rewrite with that feedback (up to 2 more times) → keep the best. Anything still unsupported is shown to the customer as **"Please check these before you approve"** | `draft.js`, `create.html` |
+| Gap chips never mention word counts or targets (prompt rule + filter) | `draft.js` |
+| Prompt-injection defence: customer text fenced in `<customer_answers>`-style tags it cannot close, invisible/direction-override characters stripped, lengths capped, explicit "data, never instructions" rules in every prompt | `functions/_lib/prompt.js` |
+| No sample draft in live mode: with no provider it fails with the calm retry message and an error log entry | `draft.js`, `draft` endpoint |
+| Guided interview: `GET/POST /api/portraits/:id/interview`. Haiku reads the fact card (the story form) and the latest answer, fills fields in the customer's words, asks one question at a time, grief line, max 14 turns, 2,400 characters per answer. Transcript in `portraits.interview` (migration 0003) | `functions/_lib/interview.js` |
+| Interview guard: a field the model fills is accepted only if every capitalised word (sentence starts included), year and number in it was already on the card or in what the customer just wrote; otherwise the customer's own words are stored instead | `interview.js` |
+| Chat UI on the story step with Send / Skip / I don't know / That's enough; the form below is titled "What we know so far (edit anything)" and updates live. **On by default since Yara approved the design (2026-10-25)**; `INTERVIEW_ENABLED=false` turns it off, and it hides itself when no AI provider is set | `app.js`, `create.html` |
+| Pre-existing mobile bug fixed: the live preview was `position: sticky` in the one-column layout and covered the editor while scrolling | `app.css` |
+| Fixture: Wanis Ganim facts from Appendix E, with the cut-off age at death and great-grandchildren count deliberately left out | `data/fixtures/wanis-ganim.facts.json` |
+| Fake Anthropic server for local tests of these flows | `scripts/mock-ai.mjs` |
+
+### Verified
+| Check | Result |
+|---|---|
+| `npm test` | 26/26 pass (12 new: validator, injection fence, cost math, provider fallback, spend cap, retries, live mode) |
+| Validator on the real Oct 25 Gemini draft | 0 false alarms on names/places/numbers (its inventions are the semantic kind, left to layer 2) |
+| Validator on invented "1925 … brother Joseph … Boston … two shops … 30 years" | all 5 caught |
+| Wanis Ganim: clipping facts pass; "at the age of 95" and "12 great-grandchildren" | pass / both flagged (F-06 gold case) |
+| Fallback when Anthropic says "credit balance too low" (the real Oct 25 error) | Gemini answers; both calls logged, the failed one as not ok |
+| Local end to end with the fake server: interview 3 turns | fields filled; invented "ran for mayor of Boston" refused and the customer's words kept; grief line shown; 403 without edit cookie; 413 for 2,500 characters |
+| Local: draft with an invention → fact check → rewrite | `attempts: 2`, final draft clean; "600-word target" gap removed; 7 `ai_calls` rows with token counts and cost |
+| Local: spend cap ($0.39 already spent) | rewrite and interview both refused with 429 and the friendly message; `ai-budget` error logged |
+| Chromium 360×760: chat → form fills → draft → "Please check" box | works, no console errors, no horizontal scroll |
+
+### Real runs on the preview (2026-10-25, after the keys were added to Preview)
+Test portraits were inserted straight into D1 (tagged `utm.test = wp2-seed-*`) because Preview enforces Turnstile, then driven through the real API with their edit tokens.
+
+| Seed | Result |
+|---|---|
+| Elias Haddad | 200, Gemini (Anthropic refused: credit too low), fact check by Gemini, **0 unsupported, 1 attempt**. No "stone"/"homes"/"family business" this time; the word-target gap chip is gone. Remaining softness: subheadline "served his community", closing "steadfast devotion… quiet generosity" (characterisation, not facts) |
+| Wanis Ganim (gold case) | 200, Gemini, 390 words, **0 unsupported**; uses only clipping facts and leaves out the cut-off age at death and great-grandchildren count |
+| thin, italian, nonlatin, emoji, injection, grief | **502: both providers refused.** Anthropic "credit balance is too low"; Gemini **HTTP 429 "You exceeded your current quota, please check your plan and billing details"** (quota exhausted after two drafts: looks like a Gemini key without billing). The customer saw the calm retry message and the team error log has both reasons, as designed |
+
+### Not verified (and why)
+0. **Blocked on provider billing (Nick):** the Anthropic key in Preview still has no credit, and the Gemini key hit its quota after two drafts. Until both work, the remaining seeds (thin, rich, non-Latin, emoji, injection, grief), the interview with real models, prompt-cache hits and cost per portrait can't be measured.
+1. **Real model behaviour** (interview quality, fact-check recall, injection attempts, cost per portrait, F-04/F-05/F-06 with 8 seed families, F-08 with 50 portraits): the keys are Cloudflare secrets I can't read, Preview has none, and the Anthropic account has no credit. All the AI logic above was tested against the fake server and stubbed `fetch`, not the real models.
+2. **Prompt caching savings**: needs real Anthropic calls (`cache_read_input_tokens` > 0 on the second call).
+3. ~~Migration 0003 is not applied to the real D1.~~ Applied 2026-10-25 after Nick's go-ahead (`portraits.interview` exists); the live site still creates and reads drafts (201/200).
+
+### Known limits
+- The code check can't tell a name at the very start of a sentence from ordinary capitalisation, so it skips those; the AI fact check covers them. The interview guard checks sentence starts too.
+- Worst case one draft costs about $0.075 (3 article calls + 3 checks). Five rewrites plus a long interview can reach the $0.40 cap; typical drafts need 1–2 attempts. Raise `MAX_AI_COST_USD` if real data says so.
+
+### Design note for Yara
+New on screen: the chat box on step 2 (behind the switch), the "Please check these before you approve" box on step 4 (red left rule, same style as the existing "To make it stronger" box), and the mobile preview no longer floats over the editor.
+
+---
+
 ## 2026-10-25 · First real AI draft (production)
 
 Nick set the Pages build command. I retried the `main` build: production (`legacyportrait.pages.dev`) now runs `main` with the secrets, deployment `1f3d2fdf`, build + deploy success.

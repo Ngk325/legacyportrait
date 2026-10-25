@@ -19,9 +19,11 @@ A web app where a customer uploads 1–3 photos of an ancestor and answers a sho
 - **Cloudflare Pages + Pages Functions** (`functions/`) for the site and API
 - **D1** (SQLite) for portraits and orders; **R2** for photos and cached print files
 - **Browser Run** (headless Chromium via `@cloudflare/puppeteer`) for 300 DPI print files
-- **AI drafting**: Anthropic first, silent Gemini fallback, labelled sample draft if no key is set
+- **AI**: `functions/_lib/ai.js` calls Anthropic first (Haiku 5.5 for the interview and fact check, Sonnet 5.5 for the article; prompt caching, JSON schema output), Gemini as the silent backup. Every call is costed into `ai_calls`; a per-portrait cap (`MAX_AI_COST_USD`, default $0.40) stops further calls. Models and prices: `config/ai.js`
+- **Fact validator** (`functions/_lib/validate.js`): years, numbers and names in a draft must be in the customer's answers (code check), plus an AI fact check for invented details; failing drafts are rewritten up to twice, and anything left is shown to the customer to check before approving. Labelled sample draft only when no key is set, never in live mode
 - **Cloudflare Turnstile** on draft creation
-- **Planned**: Stripe Checkout (test mode first), Resend email, GA4/Meta Pixel
+- **Stripe Checkout** (test mode until go-live): `functions/_lib/stripe.js`, `checkout.js`, webhook at `/api/stripe/webhook`. What was verified: `docs/INTEGRATIONS.md`
+- **Planned**: Resend email, GA4/Meta Pixel
 - **Fulfilment**: Gelato (three framed-poster sizes, see below)
 
 ## Layout
@@ -56,10 +58,22 @@ docs/HANDOFF.md                 current state, open items, next steps
 | `GET/PUT /api/portraits/:id` | Read / save answers and edited text. Editing after approval resets it to draft |
 | `POST /api/portraits/:id/claim` | Trade a private-link token for this device's edit cookie |
 | `POST/GET/DELETE /api/portraits/:id/photos/:n` | Upload (JPG/PNG/WebP checked by content, ≤8 MB, HEIC converted in browser), stream, remove. Slots 0–2 |
-| `POST /api/portraits/:id/draft` | Generate (or regenerate, max 5) the AI draft. Stores provider used (team-only field) |
+| `GET/POST /api/portraits/:id/interview` | The story chat: saved conversation and the waiting question / answer it (`{message}`, `""` = skip). Each answer is saved into the story fields at once. AI editor when available, otherwise the scripted questions |
+| `POST /api/portraits/:id/draft` | Generate (or regenerate, max 5) the AI draft, fact-check it and rewrite if needed. Claims still unsupported come back in `generated.unsupported`; provider/model are team-only fields |
 | `POST /api/portraits/:id/approve` | Customer confirms they read the text and have rights to the photos |
 | `GET /api/portraits/:id/render` | JSON the template draws from (live preview) |
-| `GET /api/portraits/:id/print?size=11x14&format=pdf\|png` | Print file. Paid orders or team (`ADMIN_TOKEN`) only. Cached in R2 |
+| `GET /api/portraits/:id/print?size=11x14&format=pdf\|png` | Print file. Paid orders, the team (`ADMIN_TOKEN`), or a signed expiring link (`&exp=&sig=`, for Gelato). Cached in R2 |
+| `POST /api/admin/retention` | Team only. Dry run of the retention rules; `?apply=1` deletes, `&tests=1` also removes portraits tagged as tests. Called daily by `workers/retention-cron` |
+| `GET /api/products` | The offer from `config/products.js`, order-by dates and an arrival estimate |
+| `GET/POST /api/portraits/:id/order` | The customer's chosen format, saved as one pending order (priced on the server) |
+| `POST /api/portraits/:id/email` | "Save your progress": links the draft to an email and sends the private link to finish on any device |
+| `GET/POST /api/unsubscribe` | Stop reminder emails (signed link in every reminder; POST = one-click) |
+| `POST /api/admin/followups` | Team only. Due reminder emails (dry run unless `?apply=1`); called hourly by `workers/retention-cron` |
+| `/admin` | Team page: orders queue, review gate, print files, Gelato steps, tracking, refunds, numbers and CSV |
+| `GET /api/admin/orders?view=open\|done\|all`, `GET/POST /api/admin/orders/:id` | Team only. Queue and one order; POST `{action}`: review, fulfill, placed, tracking, delivered, refund, resend, note |
+| `GET /api/admin/stats?days=30[&format=csv]` | Team only. Funnel, revenue, AI cost, emails, errors; CSV per day |
+| `POST /api/gelato/<GELATO_WEBHOOK_SECRET>` | Gelato order webhooks (status, tracking). The secret path is the authentication |
+| `POST /api/stripe/webhook` | Stripe events (signature-checked, each processed once): paid, async paid/failed, refunded, dispute |
 | `GET/POST /api/admin/config` | Team only. Read switches; `{"live_mode":"on"\|"off"}` flips the admin half of the LIVE_MODE gate |
 
 The draft id lets anyone with the link **read** a draft (keep links private; pages send `noindex`). **Changing** it (answers, photos, rewrites, approval) needs the edit token, an HttpOnly cookie set on the device that started the draft. Drafts made before migration 0002 have no token and stay open.

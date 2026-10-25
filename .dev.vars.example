@@ -16,3 +16,29 @@ GEMINI_API_KEY=placeholder
 # manual | gelato_draft | gelato_live
 # FULFILLMENT_MODE=manual
 ADMIN_TOKEN=local-test-token
+# Guided interview (chat on the story step) is on by default; set to false to show only the form.
+# INTERVIEW_ENABLED=false
+# AI spend cap per portrait in US$ (default 0.40, see config/ai.js)
+# MAX_AI_COST_USD=0.40
+# Local tests only: point the Anthropic calls at the fake server (node scripts/mock-ai.mjs 8799)
+# ANTHROPIC_API_BASE=http://127.0.0.1:8799
+# Stripe (WP4). Test keys only until Nick says "go live"; live keys go in the *_LIVE secrets and are used only in live mode.
+# STRIPE_SECRET_KEY_TEST=sk_test_...
+# STRIPE_WEBHOOK_SECRET_TEST=whsec_...      (from the Stripe dashboard endpoint, or `stripe listen` locally)
+# STRIPE_SECRET_KEY_LIVE=sk_live_...
+# STRIPE_WEBHOOK_SECRET_LIVE=whsec_...
+# STRIPE_TAX_ENABLED=false                    (prices include tax; Nick's decision)
+# Local tests only: node scripts/mock-stripe.mjs 8798
+# STRIPE_API_BASE=http://127.0.0.1:8798
+# Saved drafts and follow-up emails
+# LINK_SECRET=<long random string>     signs the "finish later" links and unsubscribe links (required for reminders)
+# RESEND_API_KEY=re_...                  Resend; nothing is sent until this and MAIL_FROM are set
+# MAIL_FROM=The Legacy Press <hello@yourdomain>
+# SITE_URL=https://yourdomain            base for links in reminder emails (defaults to the request's origin)
+# Local tests only: the fake server in scripts/mock-stripe.mjs also answers Resend's /emails
+# RESEND_API_BASE=http://127.0.0.1:8798
+# Fulfillment (WP5). LINK_SECRET above also signs the 7-day print-file links Gelato downloads from.
+# GELATO_API_KEY=...                     only needed for gelato_draft (sends drafts) / gelato_live; manual needs none
+# GELATO_WEBHOOK_SECRET=<64 random hex>  the webhook URL is /api/gelato/<this>; Gelato has no signatures, the path is the secret
+# Local tests only: the fake server also answers Gelato's POST /v4/orders
+# GELATO_API_BASE=http://127.0.0.1:8798

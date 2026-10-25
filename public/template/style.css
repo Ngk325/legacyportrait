@@ -178,3 +178,6 @@ figure.extra figcaption {
   letter-spacing: 0.02em;
   min-height: 18px;
 }
+
+/* preview watermark for unpaid portraits (never on print files) */
+.watermark { position: absolute; inset: 0; pointer-events: none; background-repeat: repeat; z-index: 5; }

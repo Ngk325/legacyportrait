@@ -1,10 +1,10 @@
 import { err, getPortrait, logError } from "../../../_lib/util.js";
-import { isTeam } from "../../../_lib/auth.js";
+import { isTeam, printSig } from "../../../_lib/auth.js";
 import { buildRenderData } from "../../../_lib/render.js";
 import { renderPrint, SIZES } from "../../../_lib/print.js";
 
 // GET /api/portraits/:id/print?size=11x14&format=pdf|png
-// Only for paid orders (customer download / Gelato file) or the team (ADMIN_TOKEN header or ?token=).
+// Only for paid orders (customer download), the team (ADMIN_TOKEN header or ?token=), or a signed expiring link (Gelato).
 // Results are cached in R2 so each file is rendered once (Browser Run time is limited).
 // Bump the "v2" in the key when the rendering itself changes, so old files are not served.
 export async function onRequestGet({ env, params, request }) {
@@ -18,7 +18,11 @@ export async function onRequestGet({ env, params, request }) {
   if (!p) return err(404, "We couldn't find that portrait.");
 
   const paid = ["paid", "delivered"].includes(p.status);
-  if (!paid && !isTeam(env, request)) return err(403, "The print file is available after the order is paid.");
+  // a signed link (Gelato, emails) must match this exact file and must not have expired
+  const exp = Number(url.searchParams.get("exp") || 0), sig = url.searchParams.get("sig") || "";
+  const signed = !!sig && exp > Date.now() / 1000 && sig === (await printSig(env, p.id, size, format, exp));
+  if (sig && !signed) return err(403, "This download link has expired or isn't valid.");
+  if (!paid && !isTeam(env, request) && !signed) return err(403, "The print file is available after the order is paid.");
   if (!p.edited || !p.edited.body_paragraphs?.length) return err(409, "This portrait has no approved text yet.");
 
   const stamp = (p.updated_at || "").replace(/\D/g, "");
@@ -26,7 +30,8 @@ export async function onRequestGet({ env, params, request }) {
   const headers = (type) => ({ "content-type": type, "cache-control": "private, no-store", "x-robots-tag": "noindex", "content-disposition": `attachment; filename="legacy-portrait-${size}.${format}"` });
 
   const cached = await env.PHOTOS.get(key);
-  if (cached) return new Response(cached.body, { headers: headers(cached.httpMetadata?.contentType || "application/octet-stream") });
+  if (cached) return new Response(cached.body, { headers: { ...headers(cached.httpMetadata?.contentType || "application/octet-stream"),
+    "x-fit-ok": cached.customMetadata?.fitOk || "unknown", "x-body-pt": cached.customMetadata?.bodyPt || "", "x-browser": "cached" } });
 
   if (!env.BROWSER) return err(503, "Print rendering isn't switched on yet (Browser Run binding missing).");
   try {

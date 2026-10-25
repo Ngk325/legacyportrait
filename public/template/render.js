@@ -253,6 +253,16 @@
   Array.from(last.children).forEach((c) => { if (!c.classList.contains("spacer")) usedBottom = Math.max(usedBottom, c.offsetTop + c.offsetHeight); });
   const fill = usedBottom / last.clientHeight;
 
+  // preview watermark (unpaid portraits): a separate layer over the finished page, so it never changes the layout
+  if (opts.watermark) {
+    const t = String(opts.watermark).replace(/[<>&"']/g, "");
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='360' height='240'><text x='180' y='130' font-family='Georgia, serif' font-size='44' font-weight='700' letter-spacing='8' fill='#141414' fill-opacity='0.16' text-anchor='middle' transform='rotate(-30 180 120)'>${t}</text></svg>`;
+    const wm = document.createElement("div");
+    wm.className = "watermark";
+    wm.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    document.querySelector(".page").appendChild(wm);
+  }
+
   window.__FIT__ = { ok: fitted, bodyPx: size, bodyPt: +(size / PX_PER_PT).toFixed(2), lastColumnFill: +fill.toFixed(2), photoW, photoH };
   document.body.setAttribute("data-ready", "1");
 })();

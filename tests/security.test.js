@@ -37,3 +37,16 @@ test("edit cookie is HttpOnly, scoped to the draft, Secure on https", () => {
   assert.match(c, /HttpOnly/); assert.match(c, /Path=\/api\/portraits\/abc;/); assert.match(c, /Secure/); assert.match(c, /SameSite=Lax/);
   assert.doesNotMatch(editCookie("abc", "t", req({}, "http://localhost/")), /Secure/);
 });
+
+test("signed print links: bound to portrait, size, format and expiry", async () => {
+  const { printSig, signedPrintUrl } = await import("../functions/_lib/auth.js");
+  assert.equal(await printSig({}, "p1", "11x14", "pdf", 1), null, "no secret, no links");
+  const env = { LINK_SECRET: "s".repeat(32) };
+  const url = new URL(await signedPrintUrl(env, "https://x.test", "p1", "11x14", "pdf", 60));
+  const exp = Number(url.searchParams.get("exp")), sig = url.searchParams.get("sig");
+  assert.equal(sig, await printSig(env, "p1", "11x14", "pdf", exp));
+  assert.notEqual(sig, await printSig(env, "p2", "11x14", "pdf", exp));
+  assert.notEqual(sig, await printSig(env, "p1", "16x20", "pdf", exp));
+  assert.notEqual(sig, await printSig(env, "p1", "11x14", "png", exp));
+  assert.notEqual(sig, await printSig(env, "p1", "11x14", "pdf", exp + 1));
+});

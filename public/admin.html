@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Orders · Admin</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="admin">
+<header class="topbar">
+  <span class="brand">Admin</span>
+  <nav class="steps" aria-label="Admin sections">
+    <button type="button" data-tab="orders" aria-current="step">Orders</button>
+    <button type="button" data-tab="numbers">Numbers</button>
+  </nav>
+  <button type="button" class="btn small" id="signOut" hidden>Sign out</button>
+</header>
+<main class="wrap admin-wrap">
+  <div id="modeBanner" class="banner" hidden></div>
+  <div id="flash" class="banner" hidden role="status"></div>
+
+  <form id="login" hidden>
+    <h1>Team sign-in</h1>
+    <label class="field"><span>Admin token</span><input type="password" id="token" autocomplete="current-password" required></label>
+    <p class="hint">Kept for this browser tab only.</p>
+    <button class="btn primary">Sign in</button>
+  </form>
+
+  <section id="orders" hidden>
+    <div class="filters" role="tablist" aria-label="Order queue">
+      <button type="button" class="btn small" data-view="paid" aria-pressed="true">Needs review</button>
+      <button type="button" class="btn small" data-view="ready">Ready to print</button>
+      <button type="button" class="btn small" data-view="placed">Placed with Gelato</button>
+      <button type="button" class="btn small" data-view="shipped">Shipped</button>
+      <button type="button" class="btn small" data-view="done">Delivered and refunded</button>
+    </div>
+    <ul id="orderList" class="olist"></ul>
+    <p id="empty" class="muted" hidden>Nothing here.</p>
+  </section>
+
+  <section id="detail" hidden>
+    <p><button type="button" class="btn small" id="back">← Orders</button></p>
+    <h1 id="dTitle"></h1>
+    <p class="muted" id="dSub"></p>
+    <div id="dWarn"></div>
+
+    <h2>Customer</h2>
+    <p id="dEmail"></p>
+    <div id="dShip" hidden>
+      <pre id="dAddr" class="addr"></pre>
+      <button type="button" class="btn small" id="copyAddr">Copy address</button>
+    </div>
+    <p id="dGift" hidden></p>
+
+    <div id="reviewBox" hidden>
+      <h2>Review before printing</h2>
+      <p><button type="button" class="btn small" id="checkPrint">Show the print file</button> <span class="muted small" id="fitOut"></span></p>
+      <img id="printImg" class="printimg" alt="Print file preview" hidden>
+      <label class="check"><input type="checkbox" id="rvText"> <span>Text fits (nothing cut off, size readable)</span></label>
+      <label class="check"><input type="checkbox" id="rvPhoto"> <span>Photo resolution OK for this size</span></label>
+      <label class="check"><input type="checkbox" id="rvBlank"> <span>No blank or broken areas</span></label>
+      <button type="button" class="btn" id="saveReview">Save review</button>
+    </div>
+
+    <h2>Print files</h2>
+    <div class="actions" id="dFiles"></div>
+
+    <div id="fulfilBox" hidden>
+      <h2>Gelato</h2>
+      <p class="muted small" id="gInfo"></p>
+      <p id="sendRow" hidden><button type="button" class="btn" id="sendGelato">Send to Gelato</button></p>
+      <details id="payloadBox" hidden><summary>Gelato order body</summary><pre id="payload" class="addr"></pre></details>
+      <form id="placedForm" class="row">
+        <label class="field"><span>Gelato order id</span><input id="gelatoId" autocomplete="off"></label>
+        <button class="btn">Mark placed</button>
+      </form>
+      <form id="trackForm">
+        <div class="grid2">
+          <label class="field"><span>Tracking number</span><input id="trCode" autocomplete="off"></label>
+          <label class="field"><span>Carrier <em>optional</em></span><input id="trCarrier" autocomplete="off"></label>
+        </div>
+        <label class="field"><span>Tracking link <em>https://…</em></span><input id="trUrl" type="url" autocomplete="off"></label>
+        <button class="btn">Paste tracking</button>
+      </form>
+    </div>
+
+    <h2>Actions</h2>
+    <div class="actions">
+      <button type="button" class="btn" id="delivered">Mark delivered</button>
+      <button type="button" class="btn" id="resend">Resend email</button>
+      <button type="button" class="btn danger" id="refund">Refund</button>
+    </div>
+    <label class="field"><span>Team note</span><textarea id="note" rows="2"></textarea></label>
+    <button type="button" class="btn small" id="saveNote">Save note</button>
+
+    <h2>Emails</h2>
+    <ul id="dEmails" class="plain small"></ul>
+    <h2>Errors</h2>
+    <ul id="dErrors" class="plain small"></ul>
+  </section>
+
+  <section id="numbers" hidden>
+    <div class="row">
+      <label class="field inline"><span>Last</span>
+        <select id="days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option></select>
+      </label>
+      <button type="button" class="btn small" id="csv">Download CSV</button>
+    </div>
+    <div id="kpis" class="kpis"></div>
+    <h2>AI cost</h2><ul id="ai" class="plain small"></ul>
+    <h2>Emails</h2><ul id="mails" class="plain small"></ul>
+    <h2>Recent errors</h2><ul id="errs" class="plain small"></ul>
+  </section>
+</main>
+<script src="/js/admin.js" type="module"></script>
+</body>
+</html>

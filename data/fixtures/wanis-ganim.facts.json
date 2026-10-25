@@ -1,0 +1,19 @@
+{
+  "_note": "Gold test case for the fact validator (master prompt Appendix E, F-06). Facts as read from the heirloom clipping; verify against the original before any public use. 'uncertain' items are cut off in the photo of the clipping: they are deliberately NOT in 'answers', so a draft that states them must be flagged.",
+  "answers": {
+    "name": "Wanis Joseph Ganim",
+    "pronoun": "he",
+    "relationship": "great-grandfather",
+    "byline": "Georgette Baghdady",
+    "born": "January 18, 1879, in the village of Baskinta, in the Lebanon Mountains",
+    "died": "September 8, 1974",
+    "origins": "His father died soon after his birth. His mother, poor and unable to read, gave him to the care of his uncle Hannah and Hannah's wife Sadi. He was raised in the village of Kabelias at the edge of the Bekaa plateau and adopted into his uncle's family, with brothers and sisters, one of them a lifelong friend. He emigrated at 18, in 1897, to the United States. He lived about a year in Brooklyn, New York, doing factory work and shoe repair, then moved to Bridgeport, Connecticut, where his mother lived with her second husband. For years he walked door to door as an itinerant peddler.",
+    "work": "A retail produce business on an open lot. He introduced importing Christmas trees from Canada, volume sales of fruit and vegetables for home stocking, and landscaping bushes including the azalea.",
+    "family": "He met Rose Baghdady in 1914. She was born in Zahleh and had emigrated three years earlier via Canada to live with her older brother Najeeb, Wanis's friend. A cousin in Montreal had asked for her hand by letter; she refused him on meeting and went to Bridgeport. Wanis first saw her in a grocery store. They married in 1914 and had several children. Worried about city streets, he moved the family to the rural suburbs and settled in Stratford, Connecticut. He left eight children and 31 grandchildren. The three youngest sons studied law and founded law firms. The youngest daughter was Virginia.",
+    "story": "He organized literary and social clubs with fellow Lebanese immigrants and read history, philosophy and literature despite little formal schooling. He would have chosen law and politics. He left several thousand pages of unpublished manuscript on his philosophical ideals.",
+    "detail": { "faith": "Strong attachment to the Christian Maronite Church and love of Lebanon; lifelong devotion to scholarship and social consciousness." },
+    "tone": "classic",
+    "length": "standard"
+  },
+  "uncertain": ["age at death (reads 95, partly cut off)", "number of great-grandchildren (cut off)"]
+}
