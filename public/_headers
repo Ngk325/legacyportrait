@@ -26,3 +26,6 @@
 
 /keep
   X-Robots-Tag: noindex
+
+/thanks
+  X-Robots-Tag: noindex

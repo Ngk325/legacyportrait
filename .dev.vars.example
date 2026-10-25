@@ -22,3 +22,11 @@ ADMIN_TOKEN=local-test-token
 # MAX_AI_COST_USD=0.40
 # Local tests only: point the Anthropic calls at the fake server (node scripts/mock-ai.mjs 8799)
 # ANTHROPIC_API_BASE=http://127.0.0.1:8799
+# Stripe (WP4). Test keys only until Nick says "go live"; live keys go in the *_LIVE secrets and are used only in live mode.
+# STRIPE_SECRET_KEY_TEST=sk_test_...
+# STRIPE_WEBHOOK_SECRET_TEST=whsec_...      (from the Stripe dashboard endpoint, or `stripe listen` locally)
+# STRIPE_SECRET_KEY_LIVE=sk_live_...
+# STRIPE_WEBHOOK_SECRET_LIVE=whsec_...
+# STRIPE_TAX_ENABLED=false                    (prices include tax; Nick's decision)
+# Local tests only: node scripts/mock-stripe.mjs 8798
+# STRIPE_API_BASE=http://127.0.0.1:8798

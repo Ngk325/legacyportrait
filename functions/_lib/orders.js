@@ -21,3 +21,15 @@ export function validateChoice(b) {
   return { product, size, color, assembled, gift, giftRecipient, giftMessage, amount };
 }
 
+
+const SIZE_TEXT = { "8x10": "8 × 10 in", "11x14": "11 × 14 in", "16x20": "16 × 20 in" };
+const COLOR_TEXT = Object.fromEntries(FRAME_COLORS.map((c) => [c.id, c.label.toLowerCase()]));
+
+// "Framed print, 11 × 14 in, black frame, ready to hang" (shown in Stripe Checkout and on receipts)
+export function orderLabel(o) {
+  const opt = typeof o.options === "string" ? JSON.parse(o.options || "{}") : (o.options || {});
+  const product = o.product_type || o.product;
+  if (product === "digital") return "Digital portrait (PDF and image)";
+  if (product === "print") return `Print only, ${SIZE_TEXT[o.size]}`;
+  return `Framed print, ${SIZE_TEXT[o.size]}, ${COLOR_TEXT[opt.color] || "wood"} frame, ${opt.assembled ? "ready to hang" : "assemble yourself"}`;
+}

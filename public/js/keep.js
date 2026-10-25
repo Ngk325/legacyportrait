@@ -106,6 +106,7 @@ async function main() {
   const saved = or.ok ? (await or.json()).order : null;
   if (saved) Object.assign(choice, { product: saved.product, size: saved.size || "11x14", color: saved.color || "wood", assembled: saved.assembled, gift: saved.gift });
   if (saved) { $("#giftRecipient").value = saved.giftRecipient; $("#giftMessage").value = saved.giftMessage; }
+  if (new URLSearchParams(location.search).get("canceled")) banner("No charge was made. Your portrait is saved.");
   if (catalog.orderBy.missed) { $("#late").hidden = false; $("#late").textContent = `Framed portraits ordered now arrive after ${catalog.orderBy.missed.name}. Choose the printable gift card to give today.`; }
   $("#gift").checked = choice.gift;
   $("#gift").onchange = (e) => { choice.gift = e.target.checked; update(); };
