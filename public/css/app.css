@@ -113,3 +113,23 @@ a.brand { color:inherit; text-decoration:none; } a.btn { text-decoration:none; d
 .facts dt { color:var(--muted); } .facts dd { margin:0; white-space:pre-wrap; }
 @media (max-width:480px) { .facts { grid-template-columns:1fr; } .facts dd { margin-bottom:6px; } }
 .savebox { border:1px dashed var(--line); border-radius:8px; padding:12px; margin:12px 0; } .savebox p { margin:4px 0 8px; }
+
+/* admin (internal) */
+.admin-wrap { max-width:960px; }
+.filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.filters .btn[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+.olist { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+.olist button { width:100%; text-align:left; font:inherit; background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:4px; padding:10px 12px; cursor:pointer; display:grid; grid-template-columns:1fr auto; gap:2px 12px; }
+.olist button:hover { border-color:var(--ink); }
+.olist .st { font-size:14px; font-weight:700; } .olist .sub { color:var(--muted); font-size:14px; grid-column:1 / -1; }
+.addr { white-space:pre-wrap; font:15px/1.4 ui-monospace, Menlo, monospace; border:1px solid var(--line); padding:10px; border-radius:3px; margin:0 0 6px; overflow-x:auto; }
+.printimg { max-width:100%; width:360px; border:1px solid var(--line); display:block; margin:8px 0; } .printimg[hidden] { display:none; }
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+.row { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; } .row .field { flex:1; min-width:200px; margin:8px 0; }
+.btn.danger { border-color:var(--bad); color:var(--bad); }
+.plain { list-style:none; padding:0; margin:0; } .plain li { padding:4px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.small { font-size:14px; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; margin:12px 0; }
+.kpis div { border:1px solid var(--line); border-radius:4px; padding:10px; } .kpis b { display:block; font-size:24px; } .kpis span { color:var(--muted); font-size:14px; }
+.warn-line { border-left:3px solid var(--warn); padding:4px 10px; margin:6px 0; }
+.banner.live { border-color:var(--bad); color:var(--bad); font-weight:700; }

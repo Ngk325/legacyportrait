@@ -62,13 +62,17 @@ docs/HANDOFF.md                 current state, open items, next steps
 | `POST /api/portraits/:id/draft` | Generate (or regenerate, max 5) the AI draft, fact-check it and rewrite if needed. Claims still unsupported come back in `generated.unsupported`; provider/model are team-only fields |
 | `POST /api/portraits/:id/approve` | Customer confirms they read the text and have rights to the photos |
 | `GET /api/portraits/:id/render` | JSON the template draws from (live preview) |
-| `GET /api/portraits/:id/print?size=11x14&format=pdf\|png` | Print file. Paid orders or team (`ADMIN_TOKEN`) only. Cached in R2 |
+| `GET /api/portraits/:id/print?size=11x14&format=pdf\|png` | Print file. Paid orders, the team (`ADMIN_TOKEN`), or a signed expiring link (`&exp=&sig=`, for Gelato). Cached in R2 |
 | `POST /api/admin/retention` | Team only. Dry run of the retention rules; `?apply=1` deletes, `&tests=1` also removes portraits tagged as tests. Called daily by `workers/retention-cron` |
 | `GET /api/products` | The offer from `config/products.js`, order-by dates and an arrival estimate |
 | `GET/POST /api/portraits/:id/order` | The customer's chosen format, saved as one pending order (priced on the server) |
 | `POST /api/portraits/:id/email` | "Save your progress": links the draft to an email and sends the private link to finish on any device |
 | `GET/POST /api/unsubscribe` | Stop reminder emails (signed link in every reminder; POST = one-click) |
 | `POST /api/admin/followups` | Team only. Due reminder emails (dry run unless `?apply=1`); called hourly by `workers/retention-cron` |
+| `/admin` | Team page: orders queue, review gate, print files, Gelato steps, tracking, refunds, numbers and CSV |
+| `GET /api/admin/orders?view=open\|done\|all`, `GET/POST /api/admin/orders/:id` | Team only. Queue and one order; POST `{action}`: review, fulfill, placed, tracking, delivered, refund, resend, note |
+| `GET /api/admin/stats?days=30[&format=csv]` | Team only. Funnel, revenue, AI cost, emails, errors; CSV per day |
+| `POST /api/gelato/<GELATO_WEBHOOK_SECRET>` | Gelato order webhooks (status, tracking). The secret path is the authentication |
 | `POST /api/stripe/webhook` | Stripe events (signature-checked, each processed once): paid, async paid/failed, refunded, dispute |
 | `GET/POST /api/admin/config` | Team only. Read switches; `{"live_mode":"on"\|"off"}` flips the admin half of the LIVE_MODE gate |
 

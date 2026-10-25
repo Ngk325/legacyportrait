@@ -37,3 +37,8 @@ ADMIN_TOKEN=local-test-token
 # SITE_URL=https://yourdomain            base for links in reminder emails (defaults to the request's origin)
 # Local tests only: the fake server in scripts/mock-stripe.mjs also answers Resend's /emails
 # RESEND_API_BASE=http://127.0.0.1:8798
+# Fulfillment (WP5). LINK_SECRET above also signs the 7-day print-file links Gelato downloads from.
+# GELATO_API_KEY=...                     only needed for gelato_draft (sends drafts) / gelato_live; manual needs none
+# GELATO_WEBHOOK_SECRET=<64 random hex>  the webhook URL is /api/gelato/<this>; Gelato has no signatures, the path is the secret
+# Local tests only: the fake server also answers Gelato's POST /v4/orders
+# GELATO_API_BASE=http://127.0.0.1:8798

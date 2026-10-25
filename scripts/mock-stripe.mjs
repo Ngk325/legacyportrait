@@ -1,4 +1,4 @@
-// Fake Stripe (and Resend /emails) API for local tests (never used in production): answers POST /v1/checkout/sessions and
+// Fake Stripe (and Resend /emails, Gelato /v4/orders) API for local tests (never used in production): answers POST /v1/checkout/sessions and
 // keeps the last request so a test can inspect it at GET /_last.
 // Run: node scripts/mock-stripe.mjs 8798, then STRIPE_API_BASE=http://127.0.0.1:8798 and STRIPE_SECRET_KEY_TEST=sk_test_... in .dev.vars
 import http from "node:http";
@@ -19,6 +19,17 @@ http.createServer((req, res) => {
       const id = "cs_test_mock_" + ++n;
       res.writeHead(200, { "content-type": "application/json" });
       return res.end(JSON.stringify({ id, object: "checkout.session", url: p.success_url.replace("{CHECKOUT_SESSION_ID}", id) }));
+    }
+    if (req.method === "POST" && req.url === "/v1/refunds") {
+      const p = Object.fromEntries(new URLSearchParams(body));
+      last = { auth: req.headers.authorization, idempotency: req.headers["idempotency-key"], params: p };
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ id: "re_mock_" + ++n, object: "refund", amount: 10900, payment_intent: p.payment_intent, status: "succeeded" }));
+    }
+    if (req.method === "POST" && req.url === "/v4/orders") { // Gelato (GELATO_API_BASE)
+      last = { apiKey: req.headers["x-api-key"], order: JSON.parse(body) };
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ id: "gelato-mock-" + ++n, orderType: last.order.orderType, fulfillmentStatus: "draft" }));
     }
     res.writeHead(404, { "content-type": "application/json" }); res.end('{"error":{"message":"not mocked"}}');
   });

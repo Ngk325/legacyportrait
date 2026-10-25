@@ -4,6 +4,50 @@ Running record: what was done, what was verified, what is blocked. Newest first.
 
 ---
 
+## 2026-10-25 · WP5 Admin and fulfillment; receipts; signed print links
+
+### What changed
+- **`/admin`** (team token, kept in the browser tab only; `noindex`, `no-store`). Labels per master prompt 10.6.
+  - **Orders queue:** Needs review → Ready to print → Placed with Gelato → Shipped → Delivered/Refunded.
+  - **Order screen:** copyable address, gift message, short-story and low-resolution photo warnings, "Show the print file" (renders the PNG and reports whether the text fit), a three-item review checklist that gates printing, print-file downloads (PDF/PNG), Send to Gelato (draft), Mark placed + Gelato order id, Paste tracking (emails the customer), Mark delivered, Refund (Stripe refund, confirmation required), Resend email, team note, email log, errors.
+  - **Numbers:** funnel (started → draft → approved → email → format chosen → paid), revenue split live/test, refunds, AI cost total/by job/per portrait, emails by template and status, recent errors; **CSV export** per day for the Google Sheet (9.9). Portraits tagged as tests are left out.
+- **Fulfillment modes** (`functions/_lib/fulfillment.js`): `manual` (default), `gelato_draft` (builds the exact Gelato body, stores it on the order, sends it as a **draft** only if `GELATO_API_KEY` is set), `gelato_live` (real orders only when the LIVE_MODE gate is fully on; otherwise still a draft). `config/gelato-products.js` maps all 21 SKUs; `npm run check:gelato` fails loudly while any UID is missing, and the admin refuses to build an order for a missing one.
+- **Gelato webhook** `POST /api/gelato/<GELATO_WEBHOOK_SECRET>`: secret path (constant-time compare, ≥32 chars), must name one of our orders already sent to Gelato with a matching Gelato id, idempotent (`gelato_events`). Tracking → status Shipped + tracking email (once); `delivered` → Delivered.
+- **Receipt email** after payment, with the downloads link. **Refund email** once, whether the refund starts in admin or in the Stripe dashboard. A full refund closes the downloads.
+- **Signed, expiring print-file links** (HMAC with `LINK_SECRET`, bound to portrait, size, format and expiry): Gelato fetches files with a 7-day link.
+- Migration **0005_fulfillment** (review, payload, tracking, timestamps, `gelato_events`). Applied locally only.
+
+### Bugs found and fixed on the way
+- The thank-you page showed downloads only while the order was exactly "paid": once placed or shipped they would have vanished. Now any paid-or-later status shows them.
+- A late duplicate `checkout.session.completed` could have moved a placed/shipped order back to "paid". Now only a pending order can become paid.
+- Digital orders are now "delivered" at payment, so they leave the queue and the 90-day photo retention clock starts.
+
+### Verified (local, fake Stripe/Resend/Gelato server, `FULFILLMENT_MODE=gelato_draft`)
+| Check | Result |
+|---|---|
+| Admin without token | 401; wrong token in the page → back to sign-in with a message |
+| Paid webhook → receipt email; same event again | sent once; `duplicate: true` |
+| Send to Gelato / Mark placed before review | refused: "Pass the review first." |
+| Review with photo box unticked / all ticked | stays Needs review / Ready to print |
+| Send to Gelato with no productUid | 400 naming the SKU (G-01 refuses loudly) |
+| Send to Gelato with a test UID | draft body as in INTEGRATIONS.md: `orderType: "draft"`, address split ("Maria Ann" / "Haddad", line 2 kept), signed 7-day PDF link; order stays Ready to print |
+| Signed link: tampered / other size | 403 / 403; the genuine link passes the check (local Chromium can't run as root, so the render itself wasn't repeated here; rendering is proven on the deployed preview) |
+| Paste tracking before placed | refused |
+| Gelato webhook: wrong secret / unknown order / other Gelato id / real tracking event / repeat | 404 / ignored / ignored / Shipped + email / duplicate (G-03) |
+| `delivered` status event | order and portrait Delivered |
+| Refund without confirmation / with | refused / Stripe refund called with idempotency key, Refunded, one refund email; the later `charge.refunded` webhook sends no second email; downloads then 403 (P-05) |
+| Admin UI at 360 px | no horizontal scroll; customer name `<img src=x onerror=…>` shown as text, no tag created, no dialog (S-01) |
+| `npm test` | 46 pass (new: signed print links, SKU matrix, name split, address mapping, Gelato body) |
+
+### Not done / needs Nick or Yara
+- **Apply migrations 0004 and 0005 to the real D1 before this branch's preview is used for orders** (the preview shares the production database). Needs Nick's go-ahead.
+- Gelato product UIDs (21) and the US standard `shipmentMethodUid`; `GELATO_API_KEY` and `GELATO_WEBHOOK_SECRET` in Pages secrets; register the webhook URL in Gelato. Yara's real test order (G-02).
+- `ADMIN_TOKEN` and `LINK_SECRET` in Preview. Cloudflare Access in front of `/admin` (Nick's and Yara's emails) is preferred over the token for production.
+- Real profit per order (Stripe fees, Gelato invoice) is not computed yet: needs the Gelato costs.
+- The admin page is internal and reuses the site styles; no customer-facing design changed.
+
+---
+
 ## 2026-10-25 · Story step is the chat; answers saved; follow-up emails (Nick's request)
 
 ### What changed

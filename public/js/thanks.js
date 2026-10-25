@@ -27,7 +27,7 @@ async function main() {
   if (!/^[a-f0-9]{32}$/.test(id)) { $("#wait").textContent = "This link isn't complete."; return; }
   for (let i = 0; i < 20; i++) {
     const r = await fetch(`/api/portraits/${id}/order`).then((x) => x.json()).catch(() => ({}));
-    if (r.placed && r.placed.status === "paid") return show(r.placed);
+    if (r.placed && ["paid", "ready", "placed", "shipped", "delivered"].includes(r.placed.status)) return show(r.placed);
     if (r.placed && r.placed.status === "refunded") { $("#wait").textContent = "This order was refunded."; return; }
     await sleep(i < 5 ? 1500 : 3000);
   }

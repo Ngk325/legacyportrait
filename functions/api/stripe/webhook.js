@@ -3,6 +3,7 @@ import { verifyStripeSignature } from "../../_lib/stripe.js";
 import { sendEmail, receiptEmail } from "../../_lib/mail.js";
 import { orderLabel } from "../../_lib/orders.js";
 import { PRODUCTS } from "../../../config/products.js";
+import { applyRefund } from "../../_lib/refunds.js";
 
 // POST /api/stripe/webhook (register in the Stripe dashboard for: checkout.session.completed,
 // checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, charge.refunded, charge.dispute.created)
@@ -41,7 +42,7 @@ async function handle(env, event, origin) {
     case "checkout.session.async_payment_failed":
       return logError(env, "payment-failed", "Delayed payment failed", { portraitId: o.metadata?.portrait_id || null, detail: { session: o.id } });
     case "charge.refunded":
-      return markRefunded(env, o);
+      return markRefunded(env, o, origin);
     case "charge.dispute.created":
       return logError(env, "dispute", "A customer opened a dispute", { detail: { charge: o.charge || o.id, amount: o.amount, reason: o.reason } });
     default:
@@ -53,18 +54,20 @@ async function markPaid(env, s, event, origin) {
   const orderId = s.metadata?.order_id;
   const order = orderId ? await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(orderId).first() : null;
   if (!order) throw new Error(`No order for session ${s.id} (metadata order_id ${orderId})`);
-  if (order.status === "paid") return;
+  if (order.status !== "pending") return; // already paid (or further along): never move an order backwards
   // newer API versions put shipping under collected_information; older ones at the top level
   const ship = (s.collected_information && s.collected_information.shipping_details) || s.shipping_details || null;
   const addr = ship && ship.address;
   if (addr && addr.country && addr.country !== "US") throw new Error(`Non-US shipping address on session ${s.id}`); // Checkout only allows US; this should never happen
+  // a digital order is delivered the moment it is paid (the files are on the thank-you page); this starts the retention clock
+  const digital = !PRODUCTS[order.product_type]?.physical;
   await env.DB.batch([
-    env.DB.prepare(`UPDATE orders SET status = 'paid', email = ?, shipping_name = ?, shipping_address = ?, shipping_state = ?,
+    env.DB.prepare(`UPDATE orders SET status = ?, delivered_at = CASE WHEN ? THEN datetime('now') ELSE delivered_at END, email = ?, shipping_name = ?, shipping_address = ?, shipping_state = ?,
         stripe_session_id = ?, stripe_payment_intent = ?, amount = ?, livemode = ?, updated_at = datetime('now') WHERE id = ?`)
-      .bind(s.customer_details?.email || null, ship?.name || null, addr ? JSON.stringify({ ...addr, phone: s.customer_details?.phone || null }) : null, addr?.state || null,
+      .bind(digital ? "delivered" : "paid", digital ? 1 : 0, s.customer_details?.email || null, ship?.name || null, addr ? JSON.stringify({ ...addr, phone: s.customer_details?.phone || null }) : null, addr?.state || null,
         s.id, typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id || null,
         Number.isInteger(s.amount_total) ? s.amount_total : order.amount, event.livemode ? 1 : 0, order.id),
-    env.DB.prepare("UPDATE portraits SET status = 'paid', email = COALESCE(email, ?), updated_at = datetime('now') WHERE id = ?").bind(s.customer_details?.email || null, order.portrait_id),
+    env.DB.prepare("UPDATE portraits SET status = ?, email = COALESCE(email, ?), updated_at = datetime('now') WHERE id = ?").bind(digital ? "delivered" : "paid", s.customer_details?.email || null, order.portrait_id),
   ]);
   // receipt with the download link; a failed email must not fail the payment (the team sees it in email_log/errors)
   const email = s.customer_details?.email;
@@ -79,14 +82,11 @@ async function markPaid(env, s, event, origin) {
   }
 }
 
-async function markRefunded(env, charge) {
+async function markRefunded(env, charge, origin) {
   const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
   if (!pi) return;
   const full = charge.refunded === true || charge.amount_refunded >= charge.amount;
-  const order = await env.DB.prepare("SELECT id, portrait_id FROM orders WHERE stripe_payment_intent = ?").bind(pi).first();
+  const order = await env.DB.prepare("SELECT * FROM orders WHERE stripe_payment_intent = ?").bind(pi).first();
   if (!order) throw new Error(`No order for refunded payment ${pi}`);
-  const stmts = [env.DB.prepare(`UPDATE orders SET status = CASE WHEN ? THEN 'refunded' ELSE status END, refunded_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`).bind(full ? 1 : 0, order.id)];
-  // a full refund also closes the downloads: the portrait goes back to approved (the print files need "paid")
-  if (full) stmts.push(env.DB.prepare("UPDATE portraits SET status = 'approved', updated_at = datetime('now') WHERE id = ? AND status = 'paid'").bind(order.portrait_id));
-  await env.DB.batch(stmts);
+  await applyRefund(env, order, { full, amountCents: charge.amount_refunded, origin });
 }

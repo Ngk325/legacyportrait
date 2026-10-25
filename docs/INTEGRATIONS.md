@@ -40,5 +40,16 @@ Hard rule 4: verify third-party API details before relying on them. ✅ = checke
 | `POST https://api.resend.com/emails` with `Authorization: Bearer`, JSON `from`, `to[]`, `subject`, `html`, `text`, `headers` | ⏳ VERIFY | Written from Resend's documented API shape; tested only against the local fake server. Verify on the first real send (and set up SPF/DKIM/DMARC on the sending domain) |
 | `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers | ⏳ | One-click POST handled at `/api/unsubscribe` |
 
-## Gelato, Meta, GA4
-Not integrated yet (WP5, WP8). The Gelato facts in the master prompt (section 7.4) are from Gelato's docs as read for that prompt; re-verify when building WP5.
+## Gelato
+Gelato's docs (dashboard.gelato.com/docs) refuse automated reading (HTTP 403), so these were checked through search results and secondary sources on 2026-10-25. Every row stays ⏳ until the first real call.
+| Item | Status | Notes |
+|---|---|---|
+| `POST https://order.gelatoapis.com/v4/orders`, `X-API-KEY` header | ✅ (search) 2026-10-25 | Matches the master prompt |
+| `orderType`: `order` (default) or `draft`; a draft can be PATCHed to `order` and is not produced until then | ✅ (search) 2026-10-25 | Answers the master prompt's [VERIFY]: a draft mode exists. `gelato_draft` sends drafts (only if `GELATO_API_KEY` is set) |
+| Body: `orderReferenceId`, `customerReferenceId`, `currency`, `items[{itemReferenceId, productUid, files[{type:"default", url}], quantity}]`, `shipmentMethodUid`, `shippingAddress{firstName, lastName, addressLine1, addressLine2, city, postCode, state, country, email, phone}` | ⏳ VERIFY | Field names from a third-party integration guide plus the master prompt; lengths capped (name 25, line 35, city 30, post code 15) as that guide states. Confirm against the real docs / first draft order |
+| Webhooks `order_status_updated` (`fulfillmentStatus`), `order_item_tracking_code_updated` (`trackingCode`, `trackingUrl`, `shipmentMethodName`); no signature scheme | ⏳ VERIFY | Field names assumed; handler ignores unknown orders and logs them. Check the first real event in the `errors`/`gelato_events` tables |
+| Product UIDs (21 SKUs) and the US `shipmentMethodUid` | ❌ missing | `npm run check:gelato` lists them; Yara/Nick to supply from the Gelato catalog |
+| Files fetched by URL: JPEG/PNG/SVG/PDF | ✅ master prompt | We send the 300 DPI PDF via a signed link valid 7 days |
+
+## Meta, GA4
+Not integrated yet (WP8).

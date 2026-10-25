@@ -30,7 +30,8 @@ export async function onRequestGet({ env, params, request }) {
   const headers = (type) => ({ "content-type": type, "cache-control": "private, no-store", "x-robots-tag": "noindex", "content-disposition": `attachment; filename="legacy-portrait-${size}.${format}"` });
 
   const cached = await env.PHOTOS.get(key);
-  if (cached) return new Response(cached.body, { headers: headers(cached.httpMetadata?.contentType || "application/octet-stream") });
+  if (cached) return new Response(cached.body, { headers: { ...headers(cached.httpMetadata?.contentType || "application/octet-stream"),
+    "x-fit-ok": cached.customMetadata?.fitOk || "unknown", "x-body-pt": cached.customMetadata?.bodyPt || "", "x-browser": "cached" } });
 
   if (!env.BROWSER) return err(503, "Print rendering isn't switched on yet (Browser Run binding missing).");
   try {

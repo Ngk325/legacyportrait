@@ -84,3 +84,18 @@ export function receiptEmail({ name, label, amountCents, orderId, downloadsUrl, 
   const footer = [`Order ${orderId}`, "Questions or a problem with your order? Just reply to this email.", BRAND.businessAddress ? `${BRAND.company}, ${BRAND.businessAddress}` : BRAND.company];
   return { subject: `Your ${BRAND.product} order ${orderId}`, ...layout({ heading: "Thank you. Your portrait is on its way.", paras, cta: "Download your portrait", url: downloadsUrl, footer }) };
 }
+
+// Shipped (tracking) and refunded notices: transactional.
+export function trackingEmail({ name, label, orderId, trackingUrl, trackingCode, carrier }) {
+  const paras = [`Your ${label} with the portrait of ${name || "your family member"} has shipped.`,
+    trackingCode ? `Tracking number${carrier ? ` (${carrier})` : ""}: ${trackingCode}.` : "You can follow it with the link below."];
+  const footer = [`Order ${orderId}`, "Questions? Just reply to this email.", BRAND.businessAddress ? `${BRAND.company}, ${BRAND.businessAddress}` : BRAND.company];
+  return { subject: `Your ${BRAND.product} has shipped`, ...layout({ heading: "It's on its way.", paras, cta: "Track my package", url: trackingUrl, footer }) };
+}
+
+export function refundEmail({ name, orderId, amountCents, homeUrl }) {
+  const paras = [`We've refunded $${(amountCents / 100).toFixed(2)} for the portrait of ${name || "your family member"}. It usually reaches your card within 5 to 10 business days.`,
+    "The download links for this order no longer work."];
+  const footer = [`Order ${orderId}`, "Questions? Just reply to this email.", BRAND.businessAddress ? `${BRAND.company}, ${BRAND.businessAddress}` : BRAND.company];
+  return { subject: `Your ${BRAND.product} refund`, ...layout({ heading: "Your refund is on its way.", paras, cta: `Visit ${BRAND.product}`, url: homeUrl, footer }) };
+}
