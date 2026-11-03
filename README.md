@@ -2,7 +2,9 @@
 
 A web app where a customer uploads 1–3 photos of an ancestor and answers a short questionnaire. An AI drafts a newspaper-style profile; the customer edits and approves it; it is sold as a **digital download** or a **framed print** fulfilled by **Gelato**. Target: the 2026 holiday season.
 
-> Status: working through the launch work packages in [`docs/MASTER_PROMPT_v4.md`](docs/MASTER_PROMPT_v4.md) (WP0 reality check done, WP1 foundations in review). Not yet live to customers. [`docs/LAUNCH_LOG.md`](docs/LAUNCH_LOG.md) is the running record of what was done, verified and blocked.
+> Status (2026-11-03): deployed to production with `LIVE_MODE` on, but it cannot take a real order yet. The code for checkout, orders, admin, Gelato fulfillment, follow-up emails and data retention is built and tested. What is missing is mostly keys and decisions. See [`docs/GO_LIVE_CHECKLIST.md`](docs/GO_LIVE_CHECKLIST.md) for the list and the holiday order-by dates. [`docs/LAUNCH_LOG.md`](docs/LAUNCH_LOG.md) is the running record of what was done, verified and blocked, and [`docs/MASTER_PROMPT_v4.md`](docs/MASTER_PROMPT_v4.md) is the plan.
+>
+> Operating systems: monetization (`cash/`) and social (`social/`) kits are installed. See `CLAUDE.md`.
 
 ## What is built
 
@@ -11,8 +13,8 @@ A web app where a customer uploads 1–3 photos of an ancestor and answers a sho
 | 1 | Newspaper template: one HTML/CSS layout, JSON-driven, halftone photo, auto-fit text, hyphenation | Done, approved by Yara |
 | 2 | Create flow: photos → story questions → style → AI draft → edit → approve | Done; tested with sample draft and mocked AI. No real AI key tested yet |
 | 3a | Print files (PDF/PNG) inside the site with Cloudflare Browser Run | Merged to `main`. Proven on a deployed preview (all sizes; 11x14 matches `render.py` pixel for pixel) |
-| WP1 | Config (brand, prices, holiday order-by dates), LIVE_MODE gate, edit token, Turnstile widget, self-hosted HEIC, security headers, error log, migration 0002 | In review (PR) |
-| WP2+ | AI interview and fact validator, preview-then-pay, Stripe, admin, Gelato, email, landing page | Not started |
+| WP1 | Config (brand, prices, holiday order-by dates), LIVE_MODE gate, edit token, Turnstile widget, self-hosted HEIC, security headers, error log, migration 0002 | Merged |
+| WP2-WP5 | AI interview and fact validator, preview-then-pay, Stripe Checkout and webhook, admin and fulfillment, Gelato draft orders, follow-up emails, retention | Built and tested. Live checkout waits on keys, see the go-live checklist |
 
 ## Stack
 
