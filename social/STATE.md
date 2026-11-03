@@ -13,7 +13,7 @@ Current phase: 0 · Voice approved: NO · Batch live: NO
 | none yet | | 0 | 0 | 0 |
 
 ## Waiting on owner (ranked)
-1. [ ] Do not publish anything until checkout can take a real order (see cash/STATE.md item 1). Sending people to a page that cannot sell wastes the launch. Confirm that order.
+1. [ ] Hold publishing until the create flow works end to end: AI drafts succeed (cash/STATE.md item 2) and Turnstile is on (item 3). Posts that send people to a free draft can go first, but only once drafts work. Posts that sell a framed print wait for live checkout (item 1). Confirm that order.
 2. [ ] Approve three sample posts as sounding like you (Phase 0 gate). Claude drafts them after you answer item 3.
 3. [ ] Answer: hours per week you can give, and which 5 to 10 genealogy groups you already belong to (names only).
 4. [ ] Say whether a real family story can be shown as the example portrait (the repo has one sample, `data/elias-haddad.json`). Written permission is needed for any real person.

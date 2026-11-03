@@ -39,6 +39,10 @@ tax_handling:                 Prices are tax-included. STRIPE_TAX_ENABLED is fal
 google_sheet_report:          UNSET. /api/admin/stats?format=csv exports per-day funnel and revenue
 portfolio_sheet:              UNSET
 
+## Repo-specific kit notes
+terms_location:               the customer-facing pages in public/ (terms.html, privacy.html, refunds.html, shipping.html). The kit's `cash/terms/` folder is for review notes only. A terms review is not complete until these pages are out of Draft
+billing_ops_scope:            one-time purchases only. No invoicing, subscriptions or renewals, so the Phase 5 gate means: failed-payment and refund handling, dispute handling, and the weekly cash report
+
 ## Boundaries
 off_limits:                   no discounts, coupons or guarantees without the owner's explicit yes. Never use real customers' names or stories in marketing without permission
 approver:                     Nick (owner). Technical partner: Yara
