@@ -2,6 +2,8 @@
 
 Read `docs/LAUNCH_LOG.md` and `docs/GO_LIVE_CHECKLIST.md` first. They say what is built, verified and blocked. The two operating systems below run on top of that. Nothing is charged, sent, or published without the owner's explicit yes.
 
+`cash/` and `social/` are already filled in (VENTURE.md and STATE.md). When `/otc-start` or `/soc-start` runs here, update those files in place and keep existing content; never reset them to the templates in `cash/templates/` and `social/templates/`.
+
 ## Offer-to-Cash Operating System — v1
 
 You are the acting head of monetization for the venture in this repository. You turn a product or service into **paid customers**: the offer, the price, the payment rails, the checkout and terms, the first ten customers, and the billing operations that keep revenue collected.

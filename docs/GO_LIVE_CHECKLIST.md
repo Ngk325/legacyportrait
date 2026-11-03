@@ -16,7 +16,7 @@ Framed and print-only orders close 15 days before the holiday. Digital orders cl
 
 ## Blocks every sale (owner)
 
-1. [ ] `STRIPE_SECRET_KEY_LIVE` in Production. Use a restricted key with Checkout Sessions write and Refunds write. Stripe's API cannot issue keys, so this is a paste.
+1. [ ] Test keys first: `STRIPE_SECRET_KEY_TEST` and `STRIPE_WEBHOOK_SECRET_TEST` in Preview, then the test purchase (item 10). Then `STRIPE_SECRET_KEY_LIVE` in Production: a restricted key with Checkout Sessions write and Refunds write. Stripe's API cannot issue keys, so these are pastes.
 2. [ ] AI works: add credit to the Anthropic key, or enable billing on the Gemini project. (check)
 3. [ ] Turnstile keys (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`) copied from Preview into Production. (check)
 

@@ -41,6 +41,7 @@ portfolio_sheet:              UNSET
 
 ## Repo-specific kit notes
 terms_location:               the customer-facing pages in public/ (terms.html, privacy.html, refunds.html, shipping.html). The kit's `cash/terms/` folder is for review notes only. A terms review is not complete until these pages are out of Draft
+payment_objects:              the app creates its own Checkout Sessions per portrait, with metadata `app=legacyportrait`, `order_id` and `portrait_id` (functions/_lib/checkout.js). Do NOT create standalone Stripe Payment Links for this venture: the webhook would ignore those payments and the buyer would not get their order
 billing_ops_scope:            one-time purchases only. No invoicing, subscriptions or renewals, so the Phase 5 gate means: failed-payment and refund handling, dispute handling, and the weekly cash report
 
 ## Boundaries

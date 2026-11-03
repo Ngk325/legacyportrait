@@ -19,7 +19,7 @@ Paying customers: 0 · Cash collected (last 7d): $0 · MRR: n/a · First-10 prog
 - docs/GO_LIVE_CHECKLIST.md written with the physical order-by dates.
 
 ## Waiting on owner (ranked)
-1. [ ] Paste `STRIPE_SECRET_KEY_LIVE` (restricted key: Checkout Sessions write and Refunds write) into Production. Without it no sale is possible.
+1. [ ] Test first, then live. (a) Add `STRIPE_SECRET_KEY_TEST` and `STRIPE_WEBHOOK_SECRET_TEST` to Preview so the test-mode purchase can run. (b) Only after it passes and you approve the go-live brief, paste `STRIPE_SECRET_KEY_LIVE` (restricted key: Checkout Sessions write and Refunds write) into Production. Without (b) no real sale is possible.
 2. [ ] Add credit to the Anthropic key or enable billing on the Gemini project. Drafts fail on the live site until one works. (check)
 3. [ ] Copy the Turnstile keys from Preview into Production. Bot protection is off and AI spend is exposed. (check)
 4. [ ] Business postal address and support email in config/brand.js, a sending domain, Resend key and MAIL_FROM. No emails go out otherwise.
@@ -28,7 +28,7 @@ Paying customers: 0 · Cash collected (last 7d): $0 · MRR: n/a · First-10 prog
 7. [ ] Deploy the hourly reminders and retention Worker (`workers/retention-cron`), or add Workers Scripts: Edit to the token.
 
 ## Next 3 actions
-1. Run a real end-to-end test-mode purchase once item 1 is available as a test key, and capture evidence in cash/payments/test-evidence.
+1. Run an end-to-end test-mode purchase on Preview once item 1(a) is done, and capture evidence in cash/payments/test-evidence.
 2. Have the terms-reviewer agent review the refund and shipping copy (independent of whoever wrote it).
 3. Build the first-10 plan: family and friends who will pay for a real portrait, tracked in cash/first-10.csv.
 
